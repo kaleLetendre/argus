@@ -47,10 +47,7 @@ def _parse_graph(data: dict) -> Graph:
     for raw in data.get("entities") or []:
         entity = _parse_entity(raw)
         entities[entity.id] = entity
-    edges = [
-        Edge(source=raw["source"], relation=raw["relation"], target=raw["target"])
-        for raw in data.get("edges") or []
-    ]
+    edges = [Edge.parse(raw) for raw in data.get("edges") or []]
     return Graph(entities=entities, edges=edges)
 
 

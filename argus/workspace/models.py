@@ -40,6 +40,8 @@ class Fact:
     unit: str | None = None
     note: str | None = None
     source: str | None = None
+    # 1.0 = stated by the user / a manual; lower for auto-extracted (voice, vision).
+    confidence: float = 1.0
 
     def render(self) -> str:
         text = f"{self.value}" if self.unit is None else f"{self.value} {self.unit}"
@@ -56,6 +58,7 @@ class Fact:
                 unit=raw.get("unit"),
                 note=raw.get("note"),
                 source=raw.get("source"),
+                confidence=float(raw.get("confidence", 1.0)),
             )
         return cls(key=key, value=raw)
 
@@ -106,11 +109,30 @@ class Entity:
 
 @dataclass
 class Edge:
-    """A directed relationship between two entities (``source --relation--> target``)."""
+    """A directed relationship between two entities (``source --relation--> target``).
+
+    ``weight`` is the strength of the association (used to rank/traverse), and
+    ``confidence`` is how sure we are the relationship holds. Both default to
+    1.0; auto-populated edges (voice/vision) will carry lower values. These are
+    plain edge properties, the explainable, symbolic counterpart to the learned
+    embedding layer that will sit over the graph later.
+    """
 
     source: str
     relation: str
     target: str
+    weight: float = 1.0
+    confidence: float = 1.0
+
+    @classmethod
+    def parse(cls, raw: dict) -> "Edge":
+        return cls(
+            source=raw["source"],
+            relation=raw["relation"],
+            target=raw["target"],
+            weight=float(raw.get("weight", 1.0)),
+            confidence=float(raw.get("confidence", 1.0)),
+        )
 
 
 @dataclass

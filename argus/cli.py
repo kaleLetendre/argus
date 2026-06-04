@@ -7,24 +7,25 @@ Run with ``python -m argus``. Type what you would say:
     > where am i
 
 Type ``list`` to see contexts, ``help`` for commands, ``quit`` to exit.
+
+Talks to the canonical Neo4j store. If the graph is empty, seed it first with
+``python -m argus.store.importer``.
 """
 
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
+from argus.config import neo4j_config
 from argus.router import handle
-from argus.workspace import Session, WorkspaceRegistry
-
-# Default workspaces root is ``<repo>/workspaces``.
-DEFAULT_ROOT = Path(__file__).resolve().parent.parent / "workspaces"
+from argus.store import Neo4jStore
+from argus.workspace import Session
 
 
-def _print_list(registry: WorkspaceRegistry) -> None:
-    workspaces = registry.all()
+def _print_list(store: Neo4jStore) -> None:
+    workspaces = store.list_workspaces()
     if not workspaces:
-        print("  (no workspaces found)")
+        print("  (no workspaces in the store; run: python -m argus.store.importer)")
         return
     for ws in workspaces:
         aliases = f"  [{', '.join(ws.aliases)}]" if ws.aliases else ""
@@ -32,40 +33,48 @@ def _print_list(registry: WorkspaceRegistry) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    argv = list(sys.argv[1:] if argv is None else argv)
-    root = Path(argv[0]) if argv else DEFAULT_ROOT
+    config = neo4j_config()
+    store = Neo4jStore(config)
+    try:
+        store.verify()
+    except Exception as exc:  # noqa: BLE001
+        print(f"Cannot reach Neo4j at {config.uri}: {exc}", file=sys.stderr)
+        print("Start it with: docker compose up -d", file=sys.stderr)
+        return 1
 
-    registry = WorkspaceRegistry(root)
     session = Session()
-    registry.discover()
-
-    print(f"Argus workspace shell — root: {root}")
+    print(f"Argus — knowledge store: {config.uri}")
+    if not store.list_workspaces():
+        print("No contexts loaded yet. Seed with: python -m argus.store.importer")
     print("Type 'help' for commands, 'quit' to exit.\n")
 
-    while True:
-        try:
-            line = input("> ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            return 0
+    try:
+        while True:
+            try:
+                line = input("> ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                return 0
 
-        if not line:
-            continue
-        if line in {"quit", "exit"}:
-            return 0
-        if line == "help":
-            print("  open project <name>   switch context")
-            print("  <question>            ask within the active context")
-            print("  where am i            show active context")
-            print("  list                  list known contexts")
-            print("  quit                  exit")
-            continue
-        if line == "list":
-            _print_list(registry)
-            continue
+            if not line:
+                continue
+            if line in {"quit", "exit"}:
+                return 0
+            if line == "help":
+                print("  open project <name>   switch context")
+                print("  <question>            ask within the active context")
+                print("  where am i            show active context")
+                print("  list                  list known contexts")
+                print("  quit                  exit")
+                continue
+            if line == "list":
+                _print_list(store)
+                continue
 
-        reply = handle(line, registry, session)
-        print(f"  {reply.text}")
+            reply = handle(line, store, session)
+            print(f"  {reply.text}")
+    finally:
+        store.close()
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass
 
 from argus.knowledge import answer_question
-from argus.workspace import Session, WorkspaceRegistry
+from argus.workspace import Session
 
 # "open project cressida", "switch to cressida", "go to project x", "open the x build"
 _NAV_RE = re.compile(
@@ -27,7 +27,7 @@ class Reply:
     kind: str  # "nav" | "status" | "answer" | "error"
 
 
-def handle(utterance: str, registry: WorkspaceRegistry, session: Session) -> Reply:
+def handle(utterance: str, store, session: Session) -> Reply:
     text = utterance.strip()
     if not text:
         return Reply("", "error")
@@ -35,9 +35,9 @@ def handle(utterance: str, registry: WorkspaceRegistry, session: Session) -> Rep
     nav = _NAV_RE.match(text)
     if nav:
         target = nav.group(1)
-        workspace = registry.resolve(target)
+        workspace = store.resolve_workspace(target)
         if workspace is None:
-            known = ", ".join(w.name for w in registry.all()) or "none"
+            known = ", ".join(w.name for w in store.list_workspaces()) or "none"
             return Reply(f"No context matches '{target}'. Known: {known}.", "error")
         session.activate(workspace)
         return Reply(f"Opened {workspace.name}.", "nav")
@@ -50,5 +50,5 @@ def handle(utterance: str, registry: WorkspaceRegistry, session: Session) -> Rep
     # Anything else is a question against the active context.
     if session.active is None:
         return Reply("No context is active. Open one first, e.g. 'open project cressida'.", "error")
-    answer = answer_question(text, session.active, session)
+    answer = answer_question(text, store, session)
     return Reply(answer.text, "answer")

@@ -17,14 +17,20 @@ text into the same `router.handle` entry point.
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt        # only dep is PyYAML; pytest for tests
+pip install -r requirements.txt        # PyYAML + neo4j driver; pytest for tests
+scripts/setup-neo4j.sh                 # start Neo4j (Docker) + seed the graph
 python -m argus                        # text shell simulating the voice flow
-python -m pytest                        # run all tests
-python -m pytest tests/test_workspace.py::test_structured_fact_answer  # single test
+python -m argus.store.importer --reset # re-seed the graph from the YAML
+python -m pytest                       # unit tests + integration (needs Neo4j)
+python -m pytest tests/test_workspace.py::test_structured_fact_answer  # one test
+docker compose up -d / down            # start / stop Neo4j
+scripts/backup.sh [label]              # back up the graph (DB is source of truth)
 ```
 
-The `python -m argus` shell is the primary way to manually exercise the system:
-type utterances as if spoken (`open project cressida`, then a question).
+Neo4j runs in Docker (`docker-compose.yml`), bound to `127.0.0.1` only. The
+browser is at http://localhost:7474 (user `neo4j`, password in `.env`). The
+driver connects over Bolt at `bolt://localhost:7687`. Integration tests **skip**
+automatically if Neo4j is unreachable.
 
 ## Architecture
 
@@ -32,50 +38,68 @@ Data flows: **utterance → router → (navigate | answer) → reply**. Everythi
 downstream of the router is text, so it doesn't care whether words were typed or
 will later arrive from speech-to-text.
 
-- `argus/workspace/` — the context model and state.
-  - `models.py` — `Workspace`, `Graph`, `Entity`, `Edge`, `Fact`. Entities carry
-    structured facts; edges are relationships. Fuzzy name/fact matching lives
-    here (stdlib `difflib`, intentionally no fuzzy-match dependency).
-  - `loader.py` — reads one project folder (`workspace.yaml` + `graph.yaml` +
-    `docs/*.md`) into a `Workspace`.
-  - `registry.py` — discovers all workspaces under the root and fuzzy-resolves a
-    spoken name ("project cressida") to one. This is what makes navigation work.
+**Neo4j is the canonical store.** The YAML under `workspaces/` is a *seed/import*
+format, not the runtime source. At runtime everything queries Neo4j.
+
+- `argus/store/` — the knowledge network (Neo4j).
+  - `neo4j_store.py` — `Neo4jStore`: owns the schema (constraints + Lucene
+    full-text indexes), import, and all graph queries. Graph model:
+    `(:Workspace)`, `(:Entity)` + a typed label (`:Engine`, `:Part`) for browser
+    colour, `(:Entity)-[:HAS_FACT]->(:Fact {value,unit,note,source,confidence})`,
+    edges `(:Entity)-[:<RELATION> {weight,confidence}]->(:Entity)`, and `(:Doc)`.
+    `uid = "<slug>:<id>"` because Community edition is single-database, so
+    workspaces are partitioned by node, not by database.
+  - `importer.py` — loads the YAML workspaces into Neo4j (`--reset` wipes first).
+- `argus/workspace/` — the in-memory model + seed loader.
+  - `models.py` — `Workspace`, `Graph`, `Entity`, `Edge`, `Fact` dataclasses.
+    `Edge` carries `weight`+`confidence`; `Fact` carries `confidence`. Fuzzy
+    name/fact scoring (stdlib `difflib`) lives here and is reused to re-rank
+    Neo4j full-text candidates.
+  - `loader.py` — reads a project folder (`workspace.yaml` + `graph.yaml` +
+    `docs/*.md`) into a `Workspace` for the importer.
   - `session.py` — per-conversation state: the **active** workspace and the
-    **inferred focus**. Focus is *not* set by command; `infer_focus(type)`
+    **inferred focus**. Focus is *not* set by command; `infer_focus(type, store)`
     resolves "my current engine" from a mention history (most-recent-first),
-    falling back to the unique entity of that type.
-- `argus/knowledge/` — answering questions within the active context.
-  - `query.py` — `answer_question`, the hybrid lookup. **Fact-first**: resolve
-    the target entity (named directly, or inferred focus), check its structured
-    facts, and if none matches, scan all entities' facts; only then fall back to
-    RAG. Returns an `Answer` carrying provenance.
-  - `rag.py` — **placeholder retrieval**. Scores doc paragraphs by keyword
-    overlap so the flow works without an embedding stack. The `retrieve()`
-    signature is the contract; swapping in real embeddings is a drop-in change.
+    falling back to the unique entity of that type via the store.
+  - `registry.py` — legacy file-based discovery; superseded by the store at
+    runtime, kept only as a reference. Don't wire it back into the runtime path.
+- `argus/knowledge/query.py` — `answer_question(question, store, session)`, the
+  hybrid lookup. **Fact-first**: resolve the entity (entity full-text index, or
+  inferred focus), check its facts, else scan workspace facts (fact full-text
+  index); only then fall back to RAG (`store.search_docs`, doc full-text index).
+  Returns an `Answer` with provenance; surfaces fact `confidence` when < 1.0.
 - `argus/router.py` — classifies an utterance as navigation, status, or a
   question. The single seam the future voice front end will call.
-- `argus/cli.py` — the REPL.
-- `workspaces/` — the data. Each subfolder is one context. `cressida/` is the
-  reference example; mirror its structure when adding contexts.
+- `argus/config.py` — reads `.env` (Neo4j URI/user/password); `argus/cli.py` — REPL.
 
 ## Key design decisions (agreed with the user, do not silently change)
 
-- **Contexts are an entity graph**, not flat or a deep tree. A context is a
-  project folder; the graph (`graph.yaml`) is a project file holding nodes +
-  facts + edges. Prose lives separately in `docs/*.md`.
-- **Hybrid retrieval, fact-first then RAG.** Structured specs must answer
-  exactly; docs are the fallback.
+- **Neo4j is the source of truth**, with backups (`scripts/backup.sh`), not
+  YAML-as-source. The YAML is seed/import only. Once voice/vision write knowledge
+  automatically, hand-editing YAML stops; edits happen in the graph.
+- **Contexts are an entity graph.** Entities are nodes; **facts are their own
+  `(:Fact)` nodes** (chosen over flat properties) so provenance is first-class,
+  queryable, visible in the browser, and linkable to source docs later.
+- **Relationships are weighted.** Edges carry `weight` (association strength) and
+  `confidence`; facts carry `confidence`. This is the explainable, symbolic core.
+  A learned "neural"/embedding layer (node2vec / GNN / spreading-activation) is a
+  planned *separate layer over* the graph, not a rebuild of it. Do not turn the
+  symbolic graph into a black box; explainable provenance is the point.
+- **Hybrid retrieval, fact-first then RAG.** Structured specs answer exactly;
+  docs are the fallback.
 - **Focus is inferred from conversation**, never set by an explicit command.
 - **No silently-chosen voice or embedding stack.** STT and the RAG embedding
-  backend are open decisions; `rag.py` is a flagged keyword stub. Do not commit
-  to an embedding model or STT engine without asking the user.
+  backend are still open. Doc search is currently Neo4j's Lucene full-text
+  (keyword), a placeholder for vector search. Do not commit to an embedding model
+  or STT engine without asking the user.
 
 ## Conventions
 
-- Plain dataclasses + dicts over the YAML so the whole graph stays inspectable
-  and greppable on disk. Keep new on-disk formats human-editable YAML/markdown.
-- Entity `facts` are stored as a scalar or a `{value, unit, note, source}`
-  mapping; `Fact.parse` handles both. Preserve `source`/`note` so answers can
-  cite where a spec came from.
-- When adding a context, give it generous `aliases` in `workspace.yaml` (that's
-  what makes spoken navigation forgiving) and on entities (for focus matching).
+- Keep the seed YAML human-editable; facts are a scalar or a
+  `{value, unit, note, source, confidence}` mapping (`Fact.parse` handles both).
+  Preserve `source`/`note`/`confidence` so answers can cite and qualify a spec.
+- Schema/index changes go through `Neo4jStore.setup_schema` (idempotent,
+  `IF NOT EXISTS`). After changing the model, re-run the importer with `--reset`.
+- Secrets live in `.env` (gitignored). Never commit `.env` or `data/`.
+- When adding a context, give it generous `aliases` in `workspace.yaml` and on
+  entities (that's what makes spoken navigation and focus matching forgiving).
