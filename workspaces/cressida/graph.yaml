@@ -1,0 +1,67 @@
+# Entity graph for Project Cressida.
+#
+# Each entry under `entities` is a node. `facts` are structured specs that the
+# knowledge layer answers from exactly (fact-first). `edges` connect nodes.
+# Free-form prose lives in docs/*.md and is reached via RAG when no fact matches.
+
+entities:
+  - id: engine-2jz
+    type: engine
+    name: 2JZ-GTE Engine
+    aliases:
+      - the engine
+      - 2jz
+      - current engine
+      - the motor
+    facts:
+      cam_cap_torque:
+        value: 18
+        unit: ft-lb
+        note: tighten in sequence over two passes
+        source: factory service manual, sec. EM-114
+      main_cap_torque:
+        value: 60
+        unit: ft-lb
+      head_bolt_torque:
+        value: 65
+        unit: ft-lb
+        note: plus 90 degrees, cold
+      firing_order:
+        value: 1-5-3-6-2-4
+      displacement:
+        value: 3.0
+        unit: L
+    docs:
+      - cam-timing.md
+
+  - id: head-gasket
+    type: part
+    name: MLS Head Gasket
+    aliases:
+      - head gasket
+      - hg
+    facts:
+      part_number:
+        value: "11115-46051"
+      thickness:
+        value: 1.2
+        unit: mm
+
+  - id: turbo
+    type: part
+    name: Single GT3582 Turbo
+    aliases:
+      - the turbo
+      - gt35
+    facts:
+      target_boost:
+        value: 18
+        unit: psi
+
+edges:
+  - source: head-gasket
+    relation: installed_on
+    target: engine-2jz
+  - source: turbo
+    relation: installed_on
+    target: engine-2jz
