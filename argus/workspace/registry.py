@@ -1,6 +1,6 @@
 """Discover the available workspaces and resolve spoken names to them.
 
-The registry is what turns *"jarvis, open project cressida"* into a concrete
+The registry is what turns *"argus, open project cressida"* into a concrete
 ``Workspace``. It scans the workspaces root for project folders and fuzzy-matches
 a spoken phrase against every workspace's name and aliases.
 """
@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from jarvis.workspace.loader import load_workspace
-from jarvis.workspace.models import Workspace
+from argus.workspace.loader import load_workspace
+from argus.workspace.models import Workspace
 
 
 class WorkspaceRegistry:

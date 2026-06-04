@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from jarvis.knowledge import answer_question
-from jarvis.router import handle
-from jarvis.workspace import Session, WorkspaceRegistry, load_workspace
+from argus.knowledge import answer_question
+from argus.router import handle
+from argus.workspace import Session, WorkspaceRegistry, load_workspace
 
 ROOT = Path(__file__).resolve().parent.parent / "workspaces"
 
@@ -33,7 +33,7 @@ def test_registry_resolves_spoken_name(registry):
 
 def test_navigation_then_status(registry):
     session = Session()
-    nav = handle("jarvis, open project cressida", registry, session)
+    nav = handle("argus, open project cressida", registry, session)
     assert nav.kind == "nav"
     assert session.active.slug == "cressida"
 

@@ -17,9 +17,9 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from jarvis.knowledge import rag
-from jarvis.workspace.models import Entity, Fact, Workspace
-from jarvis.workspace.session import Session
+from argus.knowledge import rag
+from argus.workspace.models import Entity, Fact, Workspace
+from argus.workspace.session import Session
 
 # Words that signal "the thing I'm currently focused on" rather than a named entity.
 _FOCUS_HINTS = ("my", "current", "the", "this")

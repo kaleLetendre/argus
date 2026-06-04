@@ -17,7 +17,7 @@ from pathlib import Path
 
 import yaml
 
-from jarvis.workspace.models import Edge, Entity, Fact, Graph, Workspace
+from argus.workspace.models import Edge, Entity, Fact, Graph, Workspace
 
 
 def _load_yaml(path: Path) -> dict:

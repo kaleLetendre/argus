@@ -17,7 +17,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from jarvis.workspace.models import Workspace
+from argus.workspace.models import Workspace
 
 
 @dataclass

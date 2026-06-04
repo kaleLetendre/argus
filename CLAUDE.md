@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Jarvis is a voice-navigable, context-aware assistant for a garage. The end goal:
-microphones (and later cameras) let the user speak a command to move Jarvis into
-a **context** ("jarvis, open project cressida"), then ask questions answered from
+Argus is a voice-navigable, context-aware assistant for a garage. The end goal:
+microphones (and later cameras) let the user speak a command to move Argus into
+a **context** ("argus, open project cressida"), then ask questions answered from
 that context's knowledge ("torque spec on the cam caps for my current engine").
 
 Built so far is the **workspace system** (the foundation). Voice/STT and vision
@@ -18,12 +18,12 @@ text into the same `router.handle` entry point.
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt        # only dep is PyYAML; pytest for tests
-python -m jarvis                        # text shell simulating the voice flow
+python -m argus                        # text shell simulating the voice flow
 python -m pytest                        # run all tests
 python -m pytest tests/test_workspace.py::test_structured_fact_answer  # single test
 ```
 
-The `python -m jarvis` shell is the primary way to manually exercise the system:
+The `python -m argus` shell is the primary way to manually exercise the system:
 type utterances as if spoken (`open project cressida`, then a question).
 
 ## Architecture
@@ -32,7 +32,7 @@ Data flows: **utterance → router → (navigate | answer) → reply**. Everythi
 downstream of the router is text, so it doesn't care whether words were typed or
 will later arrive from speech-to-text.
 
-- `jarvis/workspace/` — the context model and state.
+- `argus/workspace/` — the context model and state.
   - `models.py` — `Workspace`, `Graph`, `Entity`, `Edge`, `Fact`. Entities carry
     structured facts; edges are relationships. Fuzzy name/fact matching lives
     here (stdlib `difflib`, intentionally no fuzzy-match dependency).
@@ -44,7 +44,7 @@ will later arrive from speech-to-text.
     **inferred focus**. Focus is *not* set by command; `infer_focus(type)`
     resolves "my current engine" from a mention history (most-recent-first),
     falling back to the unique entity of that type.
-- `jarvis/knowledge/` — answering questions within the active context.
+- `argus/knowledge/` — answering questions within the active context.
   - `query.py` — `answer_question`, the hybrid lookup. **Fact-first**: resolve
     the target entity (named directly, or inferred focus), check its structured
     facts, and if none matches, scan all entities' facts; only then fall back to
@@ -52,9 +52,9 @@ will later arrive from speech-to-text.
   - `rag.py` — **placeholder retrieval**. Scores doc paragraphs by keyword
     overlap so the flow works without an embedding stack. The `retrieve()`
     signature is the contract; swapping in real embeddings is a drop-in change.
-- `jarvis/router.py` — classifies an utterance as navigation, status, or a
+- `argus/router.py` — classifies an utterance as navigation, status, or a
   question. The single seam the future voice front end will call.
-- `jarvis/cli.py` — the REPL.
+- `argus/cli.py` — the REPL.
 - `workspaces/` — the data. Each subfolder is one context. `cressida/` is the
   reference example; mirror its structure when adding contexts.
 

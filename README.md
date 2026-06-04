@@ -1,7 +1,7 @@
-# Jarvis
+# Argus
 
 A voice-navigable, context-aware assistant for the garage. You speak a command
-to move Jarvis into a **context** ("jarvis, open project cressida"), then ask
+to move Argus into a **context** ("argus, open project cressida"), then ask
 questions answered from that context's knowledge ("what's the torque spec on the
 cam caps for my current engine").
 
@@ -26,7 +26,7 @@ into this same core.
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
-python -m jarvis            # text shell that simulates the voice flow
+python -m argus            # text shell that simulates the voice flow
 ```
 
 Then type what you'd say:

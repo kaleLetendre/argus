@@ -3,17 +3,17 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jarvis"
+name = "argus"
 version = "0.0.1"
 description = "Voice-navigable, context-aware garage assistant (workspace system)"
 requires-python = ">=3.10"
 dependencies = ["PyYAML>=6.0"]
 
 [project.scripts]
-jarvis = "jarvis.cli:main"
+argus = "argus.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["jarvis*"]
+include = ["argus*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

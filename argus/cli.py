@@ -1,6 +1,6 @@
-"""A text REPL that simulates talking to Jarvis.
+"""A text REPL that simulates talking to Argus.
 
-Run with ``python -m jarvis``. Type what you would say:
+Run with ``python -m argus``. Type what you would say:
 
     > open project cressida
     > what's the torque spec on the cam caps
@@ -14,8 +14,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from jarvis.router import handle
-from jarvis.workspace import Session, WorkspaceRegistry
+from argus.router import handle
+from argus.workspace import Session, WorkspaceRegistry
 
 # Default workspaces root is ``<repo>/workspaces``.
 DEFAULT_ROOT = Path(__file__).resolve().parent.parent / "workspaces"
@@ -39,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     session = Session()
     registry.discover()
 
-    print(f"Jarvis workspace shell — root: {root}")
+    print(f"Argus workspace shell — root: {root}")
     print("Type 'help' for commands, 'quit' to exit.\n")
 
     while True:

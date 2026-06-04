@@ -1,6 +1,6 @@
 """Conversation session state: which context is active and what it's focused on.
 
-Two pieces of state move as you talk to Jarvis:
+Two pieces of state move as you talk to Argus:
 
 * the **active workspace** (set explicitly by "open project cressida"), and
 * the **focused entity**, which is *inferred from conversation* rather than set
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from jarvis.workspace.models import Entity, Workspace
+from argus.workspace.models import Entity, Workspace
 
 
 @dataclass

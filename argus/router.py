@@ -10,12 +10,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from jarvis.knowledge import answer_question
-from jarvis.workspace import Session, WorkspaceRegistry
+from argus.knowledge import answer_question
+from argus.workspace import Session, WorkspaceRegistry
 
 # "open project cressida", "switch to cressida", "go to project x", "open the x build"
 _NAV_RE = re.compile(
-    r"^\s*(?:jarvis[ ,]+)?(?:open|go to|switch to|load|enter)\s+(?:project\s+|the\s+)?(.+?)\s*$",
+    r"^\s*(?:argus[ ,]+)?(?:open|go to|switch to|load|enter)\s+(?:project\s+|the\s+)?(.+?)\s*$",
     re.IGNORECASE,
 )
 _STATUS_RE = re.compile(r"\b(where am i|what context|current context|status)\b", re.IGNORECASE)
