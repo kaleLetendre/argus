@@ -102,3 +102,88 @@ def test_question_without_context_is_rejected(store):
     session = Session()
     reply = handle("what's the boost target", store, session)
     assert reply.kind == "error"
+
+
+# --------------------------------------------------------------------------
+# Per-project isolation
+# --------------------------------------------------------------------------
+def test_current_engine_is_scoped_to_active_project(store):
+    """'my current engine' must resolve within the active project only."""
+    s1 = Session()
+    s1.activate(store.resolve_workspace("valkyrie"))
+    a1 = answer_question("firing order on my current engine", store, s1)
+    assert "1-2-4-3" in a1.text  # CB750, not the 2JZ
+
+    s2 = Session()
+    s2.activate(store.resolve_workspace("cressida"))
+    a2 = answer_question("firing order on my current engine", store, s2)
+    assert "1-5-3-6-2-4" in a2.text
+
+
+def test_no_cross_project_neighbors(store):
+    rows = store.neighbors("valkyrie", "valkyrie:engine-cb750")
+    names = [r["name"] for r in rows]
+    assert "Keihin CV Carburetors" in names
+    assert all("Turbo" not in n and "Gasket" not in n for n in names)  # no Cressida parts
+
+
+# --------------------------------------------------------------------------
+# Enrichment pipeline (fake LLM, no credits spent)
+# --------------------------------------------------------------------------
+_FAKE_JSON = """```json
+{
+  "entities": [
+    {"id": "oil-filter", "type": "part", "name": "Oil Filter", "aliases": ["filter"],
+     "evidence": "new oil filter", "doc": "build-log.md", "confidence": 0.8}
+  ],
+  "facts": [
+    {"entity_id": "engine-2jz", "key": "oil_capacity", "value": 5.4, "unit": "L",
+     "note": null, "evidence": "holds 5.4L", "doc": "build-log.md", "confidence": 0.7}
+  ],
+  "relationships": [
+    {"source": "oil-filter", "relation": "installed_on", "target": "engine-2jz",
+     "weight": 1.0, "confidence": 0.8, "evidence": "filter on the engine", "doc": "build-log.md"}
+  ]
+}
+```"""
+
+
+def test_enrichment_stage_review_approve(store):
+    from argus.enrich.extractor import enrich_workspace
+
+    fake_llm = lambda prompt, system, model: _FAKE_JSON  # noqa: E731
+    result = enrich_workspace("cressida", store, llm=fake_llm)
+    assert result["staged"] == 3
+
+    pending = store.list_proposals("cressida")
+    assert len(pending) >= 3
+
+    # Nothing is in the graph until approved.
+    session = Session()
+    handle("open project cressida", store, session)
+    before = handle("what's the oil capacity on my current engine", store, session)
+    assert "5.4" not in before.text
+
+    # Approve the fact; it becomes queryable, and surfaces as lower-confidence.
+    fact_pid = next(p["pid"] for p in pending if p["kind"] == "fact")
+    assert store.approve_proposal(fact_pid) is True
+    s2 = Session()
+    handle("open project cressida", store, s2)
+    after = handle("what's the oil capacity on my current engine", store, s2)
+    assert "5.4" in after.text and "confidence" in after.text.lower()
+
+    # Reject the entity proposal; it leaves the pending queue.
+    entity_pid = next(p["pid"] for p in pending if p["kind"] == "entity")
+    assert store.set_proposal_status(entity_pid, "rejected") is True
+    still_pending = [p["pid"] for p in store.list_proposals("cressida")]
+    assert entity_pid not in still_pending
+
+
+def test_parse_proposals_handles_fenced_json():
+    from argus.enrich.extractor import parse_proposals
+
+    props = parse_proposals(_FAKE_JSON)
+    kinds = sorted(p["kind"] for p in props)
+    assert kinds == ["entity", "fact", "relationship"]
+    # Machine confidence is capped below certainty.
+    assert all(p["confidence"] <= 0.9 for p in props)

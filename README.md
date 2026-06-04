@@ -51,6 +51,23 @@ Then type what you'd say:
 Explore the graph visually at http://localhost:7474 (user `neo4j`, password in
 `.env`).
 
+## Growing the graph with Claude
+
+Argus can read a project's docs and propose new entities/facts/relationships,
+using Claude through the Claude Agent SDK (it reuses the `claude` CLI already
+logged in on the box, no API key needed). Proposals are **staged for review**,
+never applied automatically, and each cites the exact doc quote that supports it.
+
+```bash
+python -m argus.enrich run cressida       # Claude studies the docs, stages proposals
+python -m argus.enrich review cressida     # see proposals with their evidence
+python -m argus.enrich approve <pid>       # apply one;  reject <pid> to discard
+```
+
+In the voice shell, say "study the docs" to trigger the same thing. Applied
+proposals are tagged `claude-extraction` with capped confidence, so machine-
+inferred knowledge stays distinguishable from what you stated yourself.
+
 ## Adding a context
 
 Create `workspaces/<slug>/` with `workspace.yaml` (name + aliases), `graph.yaml`
@@ -81,4 +98,5 @@ python -m pytest               # unit tests always run; integration tests need N
   associative recall, on top of the explainable weighted graph.
 - Vector embeddings for RAG (currently Neo4j full-text keyword search).
 - Voice input (speech-to-text) feeding `router.handle`.
-- Cameras / vision, mapping physical garage zones to contexts.
+- Cameras / vision, mapping physical garage zones to contexts (and feeding
+  lower-confidence observations into the graph, same staging path as enrichment).

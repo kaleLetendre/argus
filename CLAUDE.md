@@ -21,6 +21,9 @@ pip install -r requirements.txt        # PyYAML + neo4j driver; pytest for tests
 scripts/setup-neo4j.sh                 # start Neo4j (Docker) + seed the graph
 python -m argus                        # text shell simulating the voice flow
 python -m argus.store.importer --reset # re-seed the graph from the YAML
+python -m argus.enrich run <slug>      # Claude studies a project's docs, stages proposals
+python -m argus.enrich review <slug>   # review staged proposals (with evidence)
+python -m argus.enrich approve <pid>   # apply a proposal;  reject <pid> to discard
 python -m pytest                       # unit tests + integration (needs Neo4j)
 python -m pytest tests/test_workspace.py::test_structured_fact_answer  # one test
 docker compose up -d / down            # start / stop Neo4j
@@ -68,8 +71,21 @@ format, not the runtime source. At runtime everything queries Neo4j.
   inferred focus), check its facts, else scan workspace facts (fact full-text
   index); only then fall back to RAG (`store.search_docs`, doc full-text index).
   Returns an `Answer` with provenance; surfaces fact `confidence` when < 1.0.
-- `argus/router.py` — classifies an utterance as navigation, status, or a
-  question. The single seam the future voice front end will call.
+- `argus/enrich/` — Claude ruminates over a project's docs to grow its graph.
+  - `llm.py` — one-shot call to Claude via the **Claude Agent SDK**
+    (`claude-agent-sdk`), driving the local logged-in `claude` CLI (no
+    ANTHROPIC_API_KEY needed; uses the subscription session). Locked to pure
+    reasoning: no tools, `setting_sources=[]` (so it ignores this repo's
+    CLAUDE.md), one turn.
+  - `extractor.py` — builds the prompt (existing graph snapshot + docs), parses
+    Claude's JSON proposals, caps machine `confidence` at 0.9. `enrich_workspace`
+    takes an injectable `llm` so the pipeline is tested without spending credits.
+  - Proposals are **staged, never auto-applied**: stored as `(:Proposal)` nodes
+    (status pending/approved/rejected) with the supporting doc quote. Approval
+    materialises them into the graph tagged `source: "claude-extraction:<doc>"`.
+- `argus/router.py` — classifies an utterance as navigation, status, **study**
+  ("study the docs" triggers enrichment), or a question. The seam the voice
+  front end will call.
 - `argus/config.py` — reads `.env` (Neo4j URI/user/password); `argus/cli.py` — REPL.
 
 ## Key design decisions (agreed with the user, do not silently change)
@@ -87,6 +103,14 @@ format, not the runtime source. At runtime everything queries Neo4j.
   symbolic graph into a black box; explainable provenance is the point.
 - **Hybrid retrieval, fact-first then RAG.** Structured specs answer exactly;
   docs are the fallback.
+- **Each project is its own graph (logical isolation on Community).** One Neo4j
+  DB, but every node carries `workspace` and every query is scoped to it; no edge
+  crosses projects (`neighbors` filters `n.workspace`). Physical per-database
+  isolation would need Enterprise; we chose logical. Keep all new queries scoped.
+- **LLM enrichment is staged, never auto-applied**, and always tagged
+  `claude-extraction` with a capped confidence. A wrong torque spec is dangerous,
+  so machine-inferred knowledge is reviewed and stays distinguishable from stated
+  facts. Don't change this to auto-apply without the user.
 - **Focus is inferred from conversation**, never set by an explicit command.
 - **No silently-chosen voice or embedding stack.** STT and the RAG embedding
   backend are still open. Doc search is currently Neo4j's Lucene full-text

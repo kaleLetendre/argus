@@ -19,6 +19,11 @@ _NAV_RE = re.compile(
     re.IGNORECASE,
 )
 _STATUS_RE = re.compile(r"\b(where am i|what context|current context|status)\b", re.IGNORECASE)
+# "study the docs", "learn from the docs", "ruminate on this", "study this project"
+_STUDY_RE = re.compile(
+    r"\b(study|learn from|ruminate|read).{0,20}\b(docs|documents|notes|project|this)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -46,6 +51,21 @@ def handle(utterance: str, store, session: Session) -> Reply:
         if session.active is None:
             return Reply("No context is active. Try 'open project <name>'.", "status")
         return Reply(f"You're in {session.active.name}.", "status")
+
+    if _STUDY_RE.search(text):
+        if session.active is None:
+            return Reply("Open a context first, then I can study its docs.", "error")
+        # Imported lazily: enrichment pulls in the Claude Agent SDK.
+        from argus.enrich import enrich_workspace
+
+        result = enrich_workspace(session.active.slug, store)
+        if result["staged"] == 0:
+            return Reply(f"I studied the docs but found nothing new to add ({result.get('reason','')}).", "answer")
+        return Reply(
+            f"I studied the docs and staged {result['staged']} proposal(s) for your review. "
+            f"Run: python -m argus.enrich review {session.active.slug}",
+            "answer",
+        )
 
     # Anything else is a question against the active context.
     if session.active is None:

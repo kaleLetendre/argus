@@ -265,12 +265,16 @@ class Neo4jStore:
     def neighbors(self, slug: str, uid: str, relation: str | None = None) -> list[dict]:
         rel_clause = "" if relation is None else f":`{relation.upper()}`"
         with self._driver.session() as s:
+            # ``n.workspace = $slug`` keeps traversal inside the project's own
+            # graph: no edge ever crosses into another context.
             return s.run(
                 f"MATCH (e:Entity {{uid:$uid}})-[r{rel_clause}]-(n:Entity) "
+                "WHERE n.workspace = $slug "
                 "RETURN n.name AS name, type(r) AS relation, "
                 "coalesce(r.weight,1.0) AS weight, coalesce(r.confidence,1.0) AS confidence "
                 "ORDER BY weight DESC",
                 uid=uid,
+                slug=slug,
             ).data()
 
     def search_docs(self, slug: str, query: str, top_k: int = 3) -> list[dict]:
@@ -284,6 +288,184 @@ class Neo4jStore:
                 slug=slug,
                 top_k=top_k,
             ).data()
+
+    # -- enrichment support -------------------------------------------------
+    def get_docs(self, slug: str) -> list[dict]:
+        with self._driver.session() as s:
+            return s.run(
+                "MATCH (d:Doc {workspace:$slug}) RETURN d.name AS name, d.text AS text "
+                "ORDER BY d.name",
+                slug=slug,
+            ).data()
+
+    def graph_snapshot(self, slug: str) -> str:
+        """A compact text view of the existing graph, to keep Claude from
+        re-proposing things already present."""
+        with self._driver.session() as s:
+            ents = s.run(
+                "MATCH (e:Entity {workspace:$slug}) "
+                "OPTIONAL MATCH (e)-[:HAS_FACT]->(f:Fact) "
+                "RETURN e.id AS id, e.type AS type, e.name AS name, "
+                "collect(f.key) AS facts ORDER BY e.id",
+                slug=slug,
+            ).data()
+            rels = s.run(
+                "MATCH (a:Entity {workspace:$slug})-[r]->(b:Entity {workspace:$slug}) "
+                "WHERE type(r) <> 'HAS_FACT' "
+                "RETURN a.id AS source, type(r) AS rel, b.id AS target",
+                slug=slug,
+            ).data()
+        lines = [
+            f"- {e['name']} (id={e['id']}, type={e['type']}) facts: "
+            f"{', '.join(e['facts']) or 'none'}"
+            for e in ents
+        ]
+        for r in rels:
+            lines.append(f"- ({r['source']})-[{r['rel']}]->({r['target']})")
+        return "\n".join(lines)
+
+    # -- proposals (staged enrichment, reviewed before applying) ------------
+    def stage_proposals(self, slug: str, proposals: list[dict]) -> list[str]:
+        import json
+        import uuid
+
+        ids: list[str] = []
+        with self._driver.session() as s:
+            for p in proposals:
+                pid = uuid.uuid4().hex[:12]
+                s.run(
+                    "MERGE (p:Proposal {pid:$pid}) "
+                    "SET p.workspace=$slug, p.kind=$kind, p.status='pending', "
+                    "p.summary=$summary, p.evidence=$evidence, p.doc=$doc, "
+                    "p.confidence=$confidence, p.payload=$payload "
+                    "WITH p MATCH (w:Workspace {slug:$slug}) MERGE (p)-[:PROPOSED_FOR]->(w)",
+                    pid=pid,
+                    slug=slug,
+                    kind=p["kind"],
+                    summary=_summarize(p),
+                    evidence=p.get("evidence", ""),
+                    doc=p.get("doc", ""),
+                    confidence=p.get("confidence", 0.5),
+                    payload=json.dumps(p),
+                )
+                ids.append(pid)
+        return ids
+
+    def list_proposals(self, slug: str, status: str = "pending") -> list[dict]:
+        with self._driver.session() as s:
+            return s.run(
+                "MATCH (p:Proposal {workspace:$slug, status:$status}) "
+                "RETURN p.pid AS pid, p.kind AS kind, p.summary AS summary, "
+                "p.evidence AS evidence, p.doc AS doc, p.confidence AS confidence "
+                "ORDER BY p.confidence DESC",
+                slug=slug,
+                status=status,
+            ).data()
+
+    def set_proposal_status(self, pid: str, status: str) -> bool:
+        with self._driver.session() as s:
+            rec = s.run(
+                "MATCH (p:Proposal {pid:$pid}) SET p.status=$status RETURN p.pid AS pid",
+                pid=pid,
+                status=status,
+            ).single()
+        return rec is not None
+
+    def approve_proposal(self, pid: str) -> bool:
+        """Materialise a pending proposal into the graph, then mark it approved."""
+        import json
+
+        with self._driver.session() as s:
+            rec = s.run(
+                "MATCH (p:Proposal {pid:$pid}) "
+                "RETURN p.payload AS payload, p.workspace AS slug, p.status AS status",
+                pid=pid,
+            ).single()
+            if rec is None or rec["status"] != "pending":
+                return False
+            p = json.loads(rec["payload"])
+            slug = rec["slug"]
+            _apply_proposal(s, slug, p)
+            s.run("MATCH (p:Proposal {pid:$pid}) SET p.status='approved'", pid=pid)
+        return True
+
+
+def _summarize(p: dict) -> str:
+    """One-line human description of a proposal for the review screen."""
+    if p["kind"] == "entity":
+        return f"new {p.get('type','thing')} '{p.get('name')}'"
+    if p["kind"] == "fact":
+        unit = f" {p['unit']}" if p.get("unit") else ""
+        return f"{p.get('entity_id')}.{p.get('key')} = {p.get('value')}{unit}"
+    if p["kind"] == "relationship":
+        return f"({p.get('source')})-[{p.get('relation')}]->({p.get('target')})"
+    return p["kind"]
+
+
+def _apply_proposal(session, slug: str, p: dict) -> None:
+    """Write one approved proposal into the graph, tagged as machine-extracted."""
+    source = f"claude-extraction:{p.get('doc')}" if p.get("doc") else "claude-extraction"
+    kind = p["kind"]
+
+    if kind == "entity":
+        uid = _uid(slug, p["id"])
+        session.run(
+            f"MERGE (e:Entity {{uid:$uid}}) "
+            f"SET e:`{_label(p.get('type','thing'))}`, e.id=$id, e.name=$name, e.type=$type, "
+            f"e.aliases=$aliases, e.workspace=$slug, e.search=$search "
+            f"WITH e MATCH (w:Workspace {{slug:$slug}}) MERGE (e)-[:IN_WORKSPACE]->(w)",
+            uid=uid,
+            id=p["id"],
+            name=p["name"],
+            type=p.get("type", "thing"),
+            aliases=p.get("aliases") or [],
+            slug=slug,
+            search=" ".join([p["name"], p["id"], *(p.get("aliases") or [])]),
+        )
+
+    elif kind == "fact":
+        uid = _uid(slug, p["entity_id"])
+        fuid = f"{uid}#{p['key']}"
+        session.run(
+            "MERGE (e:Entity {uid:$uid}) "
+            "ON CREATE SET e.id=$eid, e.name=$eid, e.type='thing', e.workspace=$slug, e.search=$eid "
+            "MERGE (e)-[:IN_WORKSPACE]->(:Workspace {slug:$slug}) "
+            "MERGE (f:Fact {uid:$fuid}) "
+            "SET f.key=$key, f.value=$value, f.unit=$unit, f.note=$note, "
+            "f.source=$source, f.confidence=$confidence, f.search=$search "
+            "MERGE (e)-[:HAS_FACT]->(f)",
+            uid=uid,
+            eid=p["entity_id"],
+            slug=slug,
+            fuid=fuid,
+            key=p["key"],
+            value=p.get("value"),
+            unit=p.get("unit"),
+            note=p.get("note"),
+            source=source,
+            confidence=p.get("confidence", 0.5),
+            search=p["key"].replace("_", " "),
+        )
+
+    elif kind == "relationship":
+        rel = re.sub(r"[^A-Za-z0-9_]", "_", p["relation"]).upper() or "RELATED_TO"
+        session.run(
+            f"MERGE (a:Entity {{uid:$auid}}) "
+            f"ON CREATE SET a.id=$sid, a.name=$sid, a.type='thing', a.workspace=$slug, a.search=$sid "
+            f"MERGE (b:Entity {{uid:$buid}}) "
+            f"ON CREATE SET b.id=$tid, b.name=$tid, b.type='thing', b.workspace=$slug, b.search=$tid "
+            f"MERGE (a)-[r:`{rel}`]->(b) "
+            f"SET r.weight=$weight, r.confidence=$confidence, r.relation=$relation, r.source=$source",
+            auid=_uid(slug, p["source"]),
+            buid=_uid(slug, p["target"]),
+            sid=p["source"],
+            tid=p["target"],
+            slug=slug,
+            weight=p.get("weight", 1.0),
+            confidence=p.get("confidence", 0.5),
+            relation=p["relation"],
+            source=source,
+        )
 
 
 def _entity_from(node, fact_nodes) -> Entity:
