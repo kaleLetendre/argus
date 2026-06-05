@@ -19,9 +19,14 @@ _NAV_RE = re.compile(
     re.IGNORECASE,
 )
 _STATUS_RE = re.compile(r"\b(where am i|what context|current context|status)\b", re.IGNORECASE)
-# "study the docs", "learn from the docs", "ruminate on this", "study this project"
+# Explicit, anchored command so a stray keyword inside a *question* can't kick
+# off a long job: "study the docs", "learn from the notes", "study this project".
+# NOTE: enrichment still runs synchronously here and blocks the turn. Before real
+# voice input lands this must move to a backgrounded, acknowledged job (the loose
+# trigger + multi-second blocking call is a poor seam for spoken interaction).
 _STUDY_RE = re.compile(
-    r"\b(study|learn from|ruminate|read).{0,20}\b(docs|documents|notes|project|this)\b",
+    r"^\s*(?:argus[ ,]+)?(?:study|learn from|ruminate over|read)\s+"
+    r"(?:the\s+|this\s+|my\s+)?(?:docs|documents|notes|project|workspace)\b",
     re.IGNORECASE,
 )
 

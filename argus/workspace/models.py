@@ -26,6 +26,13 @@ def _similarity(a: str, b: str) -> float:
     return SequenceMatcher(None, _normalize(a), _normalize(b)).ratio()
 
 
+def _contains_words(haystack_n: str, needle_n: str) -> bool:
+    """True if normalized ``needle`` appears as a whole-word run in ``haystack``
+    (or vice-versa). Avoids substring false positives like "hg" inside "weight"."""
+    a, b = f" {haystack_n} ", f" {needle_n} "
+    return b in a or a in b
+
+
 @dataclass
 class Fact:
     """A single structured fact attached to an entity.
@@ -73,6 +80,10 @@ class Entity:
     aliases: list[str] = field(default_factory=list)
     facts: dict[str, Fact] = field(default_factory=dict)
     docs: list[str] = field(default_factory=list)
+    # Stable graph identity, preserved from the store so two same-`id` entities
+    # in different projects never collapse together in memory.
+    uid: str | None = None
+    workspace: str | None = None
 
     def names(self) -> list[str]:
         return [self.name, self.id, *self.aliases]
@@ -85,15 +96,16 @@ class Entity:
             cand_n = _normalize(candidate)
             if not cand_n:
                 continue
-            if cand_n in mention_n or mention_n in cand_n:
+            # Whole-token containment only, and never for tiny aliases ("hg"),
+            # so a 2-char alias can't greedily match unrelated questions.
+            if len(cand_n) >= 3 and _contains_words(mention_n, cand_n):
                 best = max(best, 0.9)
             best = max(best, _similarity(mention, candidate))
         return best
 
-    def find_fact(self, query: str, threshold: float = 0.45) -> Fact | None:
-        """Resolve a spoken phrase ("cam cap torque") to a stored fact key."""
-        query_n = _normalize(query)
-        query_words = set(query_n.split())
+    def best_fact(self, query: str, threshold: float = 0.45) -> tuple[Fact, float] | None:
+        """Best fact for a spoken phrase, with its score, or ``None``."""
+        query_words = set(_normalize(query).split())
         best: tuple[float, Fact] | None = None
         for key, fact in self.facts.items():
             key_words = set(_normalize(key.replace("_", " ")).split())
@@ -104,7 +116,12 @@ class Entity:
             score = max(overlap, fuzzy)
             if score >= threshold and (best is None or score > best[0]):
                 best = (score, fact)
-        return best[1] if best else None
+        return (best[1], best[0]) if best else None
+
+    def find_fact(self, query: str, threshold: float = 0.45) -> Fact | None:
+        """Resolve a spoken phrase ("cam cap torque") to a stored fact key."""
+        hit = self.best_fact(query, threshold)
+        return hit[0] if hit is not None else None
 
 
 @dataclass

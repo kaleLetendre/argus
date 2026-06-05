@@ -44,8 +44,11 @@ class Session:
 
     # -- focus tracking -----------------------------------------------------
     def note_mention(self, entity: Entity) -> None:
-        """Record that an entity just came up, so focus can be inferred later."""
-        self._mentions = [entity] + [m for m in self._mentions if m.id != entity.id]
+        """Record that an entity just came up, so focus can be inferred later.
+        Dedupes on the stable ``uid`` (falling back to ``id``) so same-id
+        entities from different projects never collapse."""
+        key = entity.uid or entity.id
+        self._mentions = [entity] + [m for m in self._mentions if (m.uid or m.id) != key]
 
     def infer_focus(self, entity_type: str, store) -> FocusResult:
         """Resolve "my current <entity_type>" from conversation so far.

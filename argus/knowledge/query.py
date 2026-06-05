@@ -21,15 +21,19 @@ from dataclasses import dataclass, field
 from argus.workspace.models import Entity, Fact
 from argus.workspace.session import Session
 
-# Spoken type words mapped to entity ``type`` values in the graph.
-_TYPE_WORDS = {
-    "engine": "engine",
+# Synonyms that map a spoken word onto an entity ``type`` value. These augment
+# the workspace's *actual* types (queried at runtime), so a project with a
+# user-defined type like "vehicle" or "fixture" resolves focus without a code
+# edit, while common synonyms ("motor" -> engine) still work.
+_TYPE_SYNONYMS = {
     "motor": "engine",
     "gearbox": "transmission",
-    "transmission": "transmission",
-    "part": "part",
-    "tool": "tool",
 }
+
+# When two candidate facts score within this margin, ask rather than guess.
+_FACT_TIE_MARGIN = 0.12
+# Below this score we don't trust a bare fact-index hit enough to answer.
+_FACT_MIN_SCORE = 0.5
 
 
 @dataclass
@@ -42,9 +46,14 @@ class Answer:
     passages: list[object] = field(default_factory=list)
 
 
-def _detect_type(question: str) -> str | None:
+def _detect_type(question: str, slug: str, store) -> str | None:
+    """Find which entity *type* a question is about, using the workspace's own
+    types plus a small synonym table. Data-driven so new types just work."""
     words = set(re.findall(r"[a-z]+", question.lower()))
-    for word, entity_type in _TYPE_WORDS.items():
+    for entity_type in store.entity_types(slug):
+        if entity_type and entity_type.lower() in words:
+            return entity_type
+    for word, entity_type in _TYPE_SYNONYMS.items():
         if word in words:
             return entity_type
     return None
@@ -73,7 +82,7 @@ def answer_question(question: str, store, session: Session) -> Answer:
     if entity is not None:
         session.note_mention(entity)
     else:
-        entity_type = _detect_type(question)
+        entity_type = _detect_type(question, slug, store)
         if entity_type is not None:
             result = session.infer_focus(entity_type, store)
             entity, note = result.entity, result.reason
@@ -85,15 +94,29 @@ def answer_question(question: str, store, session: Session) -> Answer:
                     source="disambiguation",
                 )
 
-    # 2. Fact-first. Prefer the resolved entity's facts; else scan workspace facts.
+    # 2. Fact-first. Prefer the resolved entity's facts; else scan workspace
+    #    facts, but pick the BEST-scoring one (not whatever the index ordered
+    #    first), and refuse to guess between near-ties.
     fact: Fact | None = None
     fact_entity = entity
     if entity is not None:
         fact = entity.find_fact(question)
     if fact is None:
-        for cand_entity, cand_fact in store.search_facts(slug, question):
-            fact, fact_entity = cand_fact, cand_entity
-            break
+        ranked = store.search_facts(slug, question)  # (entity, fact, score), best first
+        ranked = [r for r in ranked if r[2] >= _FACT_MIN_SCORE]
+        if ranked:
+            top = ranked[0]
+            # If a clearly-different runner-up is within the tie margin, ask.
+            for other in ranked[1:]:
+                if other[0].id != top[0].id and (top[2] - other[2]) <= _FACT_TIE_MARGIN:
+                    where = f"{top[0].name} or {other[0].name}"
+                    return Answer(
+                        text=f"Which one, {where}? Name the part and I'll give the exact spec.",
+                        found=False,
+                        source="disambiguation",
+                    )
+                break
+            fact_entity, fact = top[0], top[1]
     if fact is not None and fact_entity is not None:
         session.note_mention(fact_entity)
         conf = "" if fact.confidence >= 1.0 else f" [confidence {fact.confidence:.0%}]"

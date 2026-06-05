@@ -61,11 +61,16 @@ def _clamp(value, default: float = 0.5) -> float:
     return max(_CONF_FLOOR, min(_CONF_CAP, v))
 
 
-def build_prompt(snapshot: str, docs: list[dict]) -> str:
+def build_prompt(snapshot: str, docs: list[dict], pending: list[str] | None = None) -> str:
     doc_blocks = "\n\n".join(f"### {d['name']}\n{d['text']}" for d in docs)
+    pending_block = ""
+    if pending:
+        items = "\n".join(f"- {s}" for s in pending)
+        pending_block = f"\n## Already proposed and awaiting review (do not repeat)\n{items}\n"
     return (
         f"{_SCHEMA_HINT}\n\n"
-        f"## Existing graph (do not duplicate)\n{snapshot or '(empty)'}\n\n"
+        f"## Existing graph (do not duplicate)\n{snapshot or '(empty)'}\n"
+        f"{pending_block}\n"
         f"## Project documents\n{doc_blocks}\n"
     )
 
@@ -158,7 +163,8 @@ def enrich_workspace(
     if not docs:
         return {"staged": 0, "reason": "no docs in this context"}
     snapshot = store.graph_snapshot(slug)
-    raw = llm(build_prompt(snapshot, docs), SYSTEM, model)
+    pending = store.pending_signatures(slug)
+    raw = llm(build_prompt(snapshot, docs, pending), SYSTEM, model)
     proposals = parse_proposals(raw)
     ids = store.stage_proposals(slug, proposals)
     return {"staged": len(ids), "ids": ids, "proposals": proposals}

@@ -24,8 +24,19 @@ from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 # "opus" resolves to the strongest current Opus via the CLI. Override per call.
 DEFAULT_MODEL = "opus"
 
-# Credentials that would route to pay-per-use API billing. Always stripped.
-_PAID_CREDENTIAL_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+# Anything that could route the CLI to metered/pay-per-use billing instead of
+# the subscription session. All stripped before every call. This is a denylist
+# of the known billing-routing toggles (key auth, and the Bedrock/Vertex/base-URL
+# gateways), so a box configured for any of those still can't bill.
+_PAID_CREDENTIAL_VARS = (
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "ANTHROPIC_BASE_URL",
+    "ANTHROPIC_BEDROCK_BASE_URL",
+    "ANTHROPIC_VERTEX_BASE_URL",
+    "CLAUDE_CODE_USE_BEDROCK",
+    "CLAUDE_CODE_USE_VERTEX",
+)
 
 
 @contextlib.contextmanager

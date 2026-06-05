@@ -5,16 +5,19 @@ Two layers:
 * integration tests against a live Neo4j store (skipped if it's unreachable).
 """
 
+import os
 from pathlib import Path
 
 import pytest
 
-from argus.config import WORKSPACES_ROOT, neo4j_config
+from argus.config import WORKSPACES_ROOT, Neo4jConfig, neo4j_config
 from argus.knowledge import answer_question
 from argus.router import handle
 from argus.store import Neo4jStore
-from argus.store.importer import import_all
 from argus.workspace import Session, load_workspace
+
+# Only the demo workspaces are ever touched by tests.
+SEED_SLUGS = ("cressida", "valkyrie")
 
 
 # --------------------------------------------------------------------------
@@ -39,12 +42,26 @@ def test_entity_fact_matching_is_fuzzy():
 # --------------------------------------------------------------------------
 @pytest.fixture(scope="module")
 def store():
-    s = Neo4jStore(neo4j_config())
+    # Guard: these tests RESEED the demo workspaces, so they must not run against
+    # a real graph by accident. Opt in with ARGUS_TEST_RESET=1, or point them at a
+    # throwaway instance with NEO4J_TEST_URI. They never globally wipe the DB and
+    # only touch the SEED_SLUGS subgraphs.
+    test_uri = os.environ.get("NEO4J_TEST_URI")
+    if not test_uri and not os.environ.get("ARGUS_TEST_RESET"):
+        pytest.skip("integration tests reseed demo workspaces; "
+                    "set ARGUS_TEST_RESET=1 (or NEO4J_TEST_URI) to run")
+    cfg = neo4j_config()
+    if test_uri:
+        cfg = Neo4jConfig(uri=test_uri, user=cfg.user, password=cfg.password)
+    s = Neo4jStore(cfg)
     try:
         s.verify()
     except Exception:  # noqa: BLE001
         pytest.skip("Neo4j not reachable; skipping integration tests")
-    import_all(s, reset=True)
+    s.setup_schema()
+    for slug in SEED_SLUGS:
+        s.clear_workspace(slug)          # scoped, never `MATCH (n) DETACH DELETE n`
+        s.import_workspace(load_workspace(WORKSPACES_ROOT / slug))
     yield s
     s.close()
 
@@ -166,7 +183,7 @@ def test_enrichment_stage_review_approve(store):
 
     # Approve the fact; it becomes queryable, and surfaces as lower-confidence.
     fact_pid = next(p["pid"] for p in pending if p["kind"] == "fact")
-    assert store.approve_proposal(fact_pid) is True
+    assert store.approve_proposal(fact_pid)["status"] == "applied"
     s2 = Session()
     handle("open project cressida", store, s2)
     after = handle("what's the oil capacity on my current engine", store, s2)
@@ -187,3 +204,95 @@ def test_parse_proposals_handles_fenced_json():
     assert kinds == ["entity", "fact", "relationship"]
     # Machine confidence is capped below certainty.
     assert all(p["confidence"] <= 0.9 for p in props)
+
+
+def test_parse_proposals_survives_garbage():
+    from argus.enrich.extractor import parse_proposals
+
+    assert parse_proposals("not json at all") == []
+    assert parse_proposals("") == []
+    assert parse_proposals("```json\n{ broken : ]\n```") == []
+
+
+# --------------------------------------------------------------------------
+# Regression tests for the design-review findings
+# --------------------------------------------------------------------------
+def test_search_facts_ranked_best_first(store):
+    """The fact scan must return the BEST fuzzy match, not Lucene order."""
+    ranked = store.search_facts("cressida", "head bolt torque")
+    assert ranked, "expected at least one fact hit"
+    top_entity, top_fact, top_score = ranked[0]
+    assert top_fact.key == "head_bolt_torque"
+    scores = [score for _, _, score in ranked]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_weak_fact_question_does_not_fabricate(store):
+    """A question with no good fact match must not answer with a bogus spec.
+    Checked via provenance: the answer must not come from a graph fact."""
+    session = Session()
+    session.activate(store.resolve_workspace("cressida"))
+    ans = answer_question("what colour is the bellhousing", store, session)
+    assert not ans.source.startswith("graph fact")
+
+
+def test_enrichment_dedupes_on_rerun(store):
+    """Re-running 'study' must not pile up duplicate pending proposals."""
+    from argus.enrich.extractor import enrich_workspace
+
+    fake = lambda prompt, system, model: _FAKE_JSON  # noqa: E731
+    first = enrich_workspace("valkyrie", store, llm=fake)
+    assert first["staged"] == 3
+    second = enrich_workspace("valkyrie", store, llm=fake)
+    assert second["staged"] == 0  # all duplicates, nothing new staged
+
+
+def test_approve_refuses_to_overwrite_a_trusted_fact(store):
+    """Approving a Claude fact that conflicts with a stated, higher-confidence
+    fact must be refused, not silently clobbered."""
+    from argus.enrich.extractor import enrich_workspace
+
+    # Claude 'proposes' a different cam cap torque at lower confidence.
+    conflicting = """```json
+    {"facts": [{"entity_id": "engine-2jz", "key": "cam_cap_torque", "value": 99,
+      "unit": "ft-lb", "evidence": "q", "doc": "build-log.md", "confidence": 0.7}]}
+    ```"""
+    enrich_workspace("cressida", store, llm=lambda p, s, m: conflicting)
+    pid = next(p["pid"] for p in store.list_proposals("cressida")
+               if "cam_cap_torque" in p["summary"])
+    result = store.approve_proposal(pid)
+    assert result["status"] == "conflict"
+    # The trusted value is untouched.
+    s2 = Session()
+    handle("open project cressida", store, s2)
+    assert "18 ft-lb" in handle("cam cap torque on my current engine", store, s2).text
+
+
+def test_approved_new_entity_is_linked_into_its_workspace(store):
+    """A fact proposal for a brand-new entity must link it via IN_WORKSPACE and
+    must not create a stray duplicate Workspace node."""
+    from argus.enrich.extractor import enrich_workspace
+
+    payload = """```json
+    {"facts": [{"entity_id": "oil-cooler", "key": "capacity", "value": 0.5,
+      "unit": "L", "evidence": "q", "doc": "build-log.md", "confidence": 0.6}]}
+    ```"""
+    enrich_workspace("cressida", store, llm=lambda p, s, m: payload)
+    pid = next(p["pid"] for p in store.list_proposals("cressida")
+               if "oil-cooler" in p["summary"])
+    assert store.approve_proposal(pid)["status"] == "applied"
+
+    with store._driver.session() as sess:  # noqa: SLF001 - white-box check
+        linked = sess.run(
+            "MATCH (e:Entity {uid:'cressida:oil-cooler'})-[:IN_WORKSPACE]->"
+            "(w:Workspace {slug:'cressida'}) RETURN count(w) AS n"
+        ).single()["n"]
+        ws_count = sess.run(
+            "MATCH (w:Workspace {slug:'cressida'}) RETURN count(w) AS n"
+        ).single()["n"]
+    assert linked == 1
+    assert ws_count == 1  # no stray duplicate workspace
+
+
+def test_entity_types_is_data_driven(store):
+    assert set(store.entity_types("valkyrie")) >= {"engine", "part"}

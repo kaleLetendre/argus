@@ -71,8 +71,11 @@ def main(argv: list[str] | None = None) -> int:
                 _print_list(store)
                 continue
 
-            reply = handle(line, store, session)
-            print(f"  {reply.text}")
+            try:
+                reply = handle(line, store, session)
+                print(f"  {reply.text}")
+            except Exception as exc:  # noqa: BLE001 - isolate one bad turn
+                print(f"  (something went wrong handling that: {exc})")
     finally:
         store.close()
 

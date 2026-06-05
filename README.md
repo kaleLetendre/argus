@@ -89,8 +89,12 @@ scripts/backup.sh nightly      # writes a timestamped dump under backups/
 ## Tests
 
 ```bash
-python -m pytest               # unit tests always run; integration tests need Neo4j
+python -m pytest               # unit tests; integration tests skip by default
+ARGUS_TEST_RESET=1 python -m pytest   # also run integration tests (RESEEDS demo workspaces)
 ```
+
+Integration tests reseed the `cressida`/`valkyrie` demo workspaces, so they
+require an explicit opt-in and never globally wipe the database.
 
 ## Roadmap
 

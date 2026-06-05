@@ -24,7 +24,8 @@ python -m argus.store.importer --reset # re-seed the graph from the YAML
 python -m argus.enrich run <slug>      # Claude studies a project's docs, stages proposals
 python -m argus.enrich review <slug>   # review staged proposals (with evidence)
 python -m argus.enrich approve <pid>   # apply a proposal;  reject <pid> to discard
-python -m pytest                       # unit tests + integration (needs Neo4j)
+python -m pytest                       # unit tests only (integration tests skip)
+ARGUS_TEST_RESET=1 python -m pytest    # +integration; RESEEDS the demo workspaces
 python -m pytest tests/test_workspace.py::test_structured_fact_answer  # one test
 docker compose up -d / down            # start / stop Neo4j
 scripts/backup.sh [label]              # back up the graph (DB is source of truth)
@@ -131,6 +132,14 @@ format, not the runtime source. At runtime everything queries Neo4j.
   Preserve `source`/`note`/`confidence` so answers can cite and qualify a spec.
 - Schema/index changes go through `Neo4jStore.setup_schema` (idempotent,
   `IF NOT EXISTS`). After changing the model, re-run the importer with `--reset`.
+- **Integration tests reseed the demo workspaces and require opt-in**
+  (`ARGUS_TEST_RESET=1`, or `NEO4J_TEST_URI` for a throwaway instance); they use
+  scoped `clear_workspace`, never a global wipe. Never point them at a graph
+  holding real knowledge without expecting cressida/valkyrie to be reseeded.
+- Multi-statement writes (import, approve) run in `execute_write` transactions.
+  Approving a proposal is conflict-checked: it refuses to overwrite a stated
+  fact that's at least as confident. Re-running enrichment dedupes on a content
+  signature, so proposals don't pile up.
 - Secrets live in `.env` (gitignored). Never commit `.env` or `data/`.
 - When adding a context, give it generous `aliases` in `workspace.yaml` and on
   entities (that's what makes spoken navigation and focus matching forgiving).

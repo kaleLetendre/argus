@@ -70,9 +70,21 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "review":
             return _review(store, args.slug)
         if args.cmd == "approve":
-            ok = store.approve_proposal(args.pid)
-            print("Applied to the graph." if ok else "No such pending proposal.")
-            return 0 if ok else 1
+            result = store.approve_proposal(args.pid)
+            status = result["status"]
+            if status == "applied":
+                print(f"Applied to '{result['slug']}': {result['summary']}")
+                return 0
+            if status == "conflict":
+                ex = result["existing"]
+                print(f"Refused: '{result['summary']}' conflicts with an existing fact "
+                      f"(value={ex['value']!r}, confidence={ex['confidence']:.0%}, "
+                      f"source={ex['source']!r}).")
+                print("That stated value is at least as trusted. Reject this proposal, "
+                      "or change the existing fact by hand if the new value is correct.")
+                return 1
+            print("No such pending proposal.")
+            return 1
         if args.cmd == "reject":
             ok = store.set_proposal_status(args.pid, "rejected")
             print("Rejected." if ok else "No such proposal.")

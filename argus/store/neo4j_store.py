@@ -38,9 +38,20 @@ IDX_DOC = "doc_search"
 
 
 def _label(entity_type: str) -> str:
-    """A safe, capitalised Neo4j label from a free-form type string."""
+    """A safe, capitalised Neo4j label from a free-form type string.
+
+    Neo4j labels cannot start with a digit, so a numeric-leading type is
+    prefixed; an all-symbol type falls back to ``Thing``.
+    """
     cleaned = re.sub(r"[^A-Za-z0-9]", "", entity_type).strip() or "Thing"
+    if cleaned[0].isdigit():
+        cleaned = "T" + cleaned
     return cleaned[:1].upper() + cleaned[1:]
+
+
+def _rel_type(relation: str) -> str:
+    """A safe relationship type from a free-form relation string."""
+    return re.sub(r"[^A-Za-z0-9_]", "_", relation).upper() or "RELATED_TO"
 
 
 def _lucene(text: str) -> str:
@@ -51,6 +62,23 @@ def _lucene(text: str) -> str:
 
 def _uid(slug: str, entity_id: str) -> str:
     return f"{slug}:{entity_id}"
+
+
+def _entity_search(name: str, entity_id: str, aliases: list[str]) -> str:
+    """The denormalized full-text search string for an entity (one place)."""
+    return " ".join([name, entity_id, *(aliases or [])])
+
+
+def _proposal_signature(p: dict) -> str:
+    """A content key identifying a proposal, so re-running enrichment doesn't
+    stage the same entity/fact/relationship twice."""
+    if p["kind"] == "entity":
+        return f"entity:{p.get('id')}"
+    if p["kind"] == "fact":
+        return f"fact:{p.get('entity_id')}.{p.get('key')}"
+    if p["kind"] == "relationship":
+        return f"rel:{p.get('source')}-{p.get('relation')}-{p.get('target')}"
+    return f"{p['kind']}:{p}"
 
 
 class Neo4jStore:
@@ -95,82 +123,87 @@ class Neo4jStore:
                 s.run(stmt)
 
     def clear(self) -> None:
-        """Wipe all data (used by re-import and tests). Schema is kept."""
+        """Wipe ALL data. Destructive; used only by an explicit ``--reset``.
+        Prefer :meth:`clear_workspace` for scoped resets."""
         with self._driver.session() as s:
             s.run("MATCH (n) DETACH DELETE n")
 
-    # -- import (YAML workspace -> graph) -----------------------------------
-    def import_workspace(self, ws: Workspace) -> None:
-        slug = ws.slug
+    def clear_workspace(self, slug: str) -> None:
+        """Delete just one project's subgraph (entities, facts, docs, proposals),
+        leaving every other workspace untouched."""
         with self._driver.session() as s:
-            s.run(
-                "MERGE (w:Workspace {slug:$slug}) "
-                "SET w.name=$name, w.aliases=$aliases, w.description=$desc, w.search=$search",
-                slug=slug,
-                name=ws.name,
-                aliases=ws.aliases,
-                desc=ws.description,
-                search=" ".join([ws.name, slug, *ws.aliases]),
+            s.execute_write(
+                lambda tx: (
+                    tx.run(
+                        "MATCH (e:Entity {workspace:$slug}) "
+                        "OPTIONAL MATCH (e)-[:HAS_FACT]->(f:Fact) DETACH DELETE e, f",
+                        slug=slug,
+                    ),
+                    tx.run("MATCH (d:Doc {workspace:$slug}) DETACH DELETE d", slug=slug),
+                    tx.run("MATCH (p:Proposal {workspace:$slug}) DETACH DELETE p", slug=slug),
+                    tx.run("MATCH (w:Workspace {slug:$slug}) DETACH DELETE w", slug=slug),
+                )
             )
 
-            for entity in ws.graph.entities.values():
-                uid = _uid(slug, entity.id)
-                s.run(
-                    f"MERGE (e:Entity {{uid:$uid}}) "
-                    f"SET e:`{_label(entity.type)}`, e.id=$id, e.name=$name, e.type=$type, "
-                    f"e.aliases=$aliases, e.workspace=$slug, e.search=$search "
-                    f"WITH e MATCH (w:Workspace {{slug:$slug}}) MERGE (e)-[:IN_WORKSPACE]->(w)",
-                    uid=uid,
-                    id=entity.id,
-                    name=entity.name,
-                    type=entity.type,
-                    aliases=entity.aliases,
-                    slug=slug,
-                    search=" ".join([entity.name, entity.id, *entity.aliases]),
-                )
-                for fact in entity.facts.values():
-                    fuid = f"{uid}#{fact.key}"
-                    s.run(
-                        "MERGE (f:Fact {uid:$fuid}) "
-                        "SET f.key=$key, f.value=$value, f.unit=$unit, f.note=$note, "
-                        "f.source=$source, f.confidence=$confidence, f.search=$search "
-                        "WITH f MATCH (e:Entity {uid:$uid}) MERGE (e)-[:HAS_FACT]->(f)",
-                        fuid=fuid,
-                        key=fact.key,
-                        value=fact.value,
-                        unit=fact.unit,
-                        note=fact.note,
-                        source=fact.source,
-                        confidence=fact.confidence,
-                        search=fact.key.replace("_", " "),
-                        uid=uid,
-                    )
-
-            for edge in ws.graph.edges:
-                rel = re.sub(r"[^A-Za-z0-9_]", "_", edge.relation).upper() or "RELATED_TO"
-                s.run(
-                    f"MATCH (a:Entity {{uid:$auid}}), (b:Entity {{uid:$buid}}) "
-                    f"MERGE (a)-[r:`{rel}`]->(b) "
-                    f"SET r.weight=$weight, r.confidence=$confidence, r.relation=$relation",
-                    auid=_uid(slug, edge.source),
-                    buid=_uid(slug, edge.target),
-                    weight=edge.weight,
-                    confidence=edge.confidence,
-                    relation=edge.relation,
-                )
-
-            for doc_path in ws.doc_paths:
-                duid = f"{slug}:{doc_path.name}"
-                s.run(
-                    "MERGE (d:Doc {uid:$duid}) "
-                    "SET d.path=$path, d.name=$name, d.text=$text, d.workspace=$slug "
-                    "WITH d MATCH (w:Workspace {slug:$slug}) MERGE (d)-[:IN_WORKSPACE]->(w)",
-                    duid=duid,
-                    path=str(doc_path),
-                    name=doc_path.name,
-                    text=Path(doc_path).read_text(encoding="utf-8"),
-                    slug=slug,
-                )
+    # -- import (YAML workspace -> graph) -----------------------------------
+    def import_workspace(self, ws: Workspace) -> None:
+        """Seed/refresh one workspace. Runs as a single write transaction so a
+        failure can't leave a half-loaded graph."""
+        slug = ws.slug
+        meta = {
+            "slug": slug,
+            "name": ws.name,
+            "aliases": ws.aliases,
+            "desc": ws.description,
+            "search": " ".join([ws.name, slug, *ws.aliases]),
+        }
+        entities = [
+            {
+                "uid": _uid(slug, e.id),
+                "id": e.id,
+                "name": e.name,
+                "type": e.type,
+                "label": _label(e.type),
+                "aliases": e.aliases,
+                "search": _entity_search(e.name, e.id, e.aliases),
+                "facts": [
+                    {
+                        "fuid": f"{_uid(slug, e.id)}#{f.key}",
+                        "key": f.key,
+                        "value": f.value,
+                        "unit": f.unit,
+                        "note": f.note,
+                        "source": f.source,
+                        "confidence": f.confidence,
+                        "search": f.key.replace("_", " "),
+                    }
+                    for f in e.facts.values()
+                ],
+            }
+            for e in ws.graph.entities.values()
+        ]
+        edges = [
+            {
+                "auid": _uid(slug, edge.source),
+                "buid": _uid(slug, edge.target),
+                "rel": _rel_type(edge.relation),
+                "weight": edge.weight,
+                "confidence": edge.confidence,
+                "relation": edge.relation,
+            }
+            for edge in ws.graph.edges
+        ]
+        docs = [
+            {
+                "duid": f"{slug}:{p.name}",
+                "path": str(p),
+                "name": p.name,
+                "text": Path(p).read_text(encoding="utf-8"),
+            }
+            for p in ws.doc_paths
+        ]
+        with self._driver.session() as s:
+            s.execute_write(_import_tx, meta, entities, edges, docs)
 
     # -- queries ------------------------------------------------------------
     def list_workspaces(self) -> list[Workspace]:
@@ -237,8 +270,16 @@ class Neo4jStore:
             ).data()
             return [e for e in (self._load_entity(s, r["uid"]) for r in rows) if e]
 
-    def search_facts(self, slug: str, query: str, limit: int = 12) -> list[tuple[Entity, Fact]]:
-        """Full-text over fact keys; returns (entity, fact) pairs to re-rank."""
+    def search_facts(
+        self, slug: str, query: str, limit: int = 12
+    ) -> list[tuple[Entity, Fact, float]]:
+        """Full-text over fact keys, re-ranked by the difflib fact scorer.
+
+        Returns ``(entity, fact, score)`` sorted best-first, so callers pick the
+        genuinely closest fact rather than whatever Lucene happened to order
+        first. Critical for spec questions: a wrong torque number must not win on
+        index order alone.
+        """
         with self._driver.session() as s:
             rows = s.run(
                 f"CALL db.index.fulltext.queryNodes('{IDX_FACT}', $q) "
@@ -249,7 +290,7 @@ class Neo4jStore:
                 slug=slug,
                 limit=limit,
             ).data()
-            out: list[tuple[Entity, Fact]] = []
+            out: list[tuple[Entity, Fact, float]] = []
             seen: set[str] = set()
             for r in rows:
                 if r["uid"] in seen:
@@ -257,10 +298,21 @@ class Neo4jStore:
                 seen.add(r["uid"])
                 entity = self._load_entity(s, r["uid"])
                 if entity:
-                    fact = entity.find_fact(query)
-                    if fact:
-                        out.append((entity, fact))
-            return out
+                    hit = entity.best_fact(query)
+                    if hit:
+                        out.append((entity, hit[0], hit[1]))
+        out.sort(key=lambda t: t[2], reverse=True)
+        return out
+
+    def entity_types(self, slug: str) -> list[str]:
+        """Distinct entity ``type`` values present in a workspace (drives
+        data-driven focus inference, so user-defined types resolve too)."""
+        with self._driver.session() as s:
+            rows = s.run(
+                "MATCH (e:Entity {workspace:$slug}) RETURN DISTINCT e.type AS type",
+                slug=slug,
+            ).data()
+        return [r["type"] for r in rows if r["type"]]
 
     def neighbors(self, slug: str, uid: str, relation: str | None = None) -> list[dict]:
         rel_clause = "" if relation is None else f":`{relation.upper()}`"
@@ -326,22 +378,38 @@ class Neo4jStore:
 
     # -- proposals (staged enrichment, reviewed before applying) ------------
     def stage_proposals(self, slug: str, proposals: list[dict]) -> list[str]:
+        """Stage proposals for review, skipping any that duplicate one already
+        pending for this workspace (so repeated 'study the docs' doesn't pile up
+        identical entries)."""
         import json
         import uuid
 
-        ids: list[str] = []
         with self._driver.session() as s:
+            existing = {
+                r["sig"]
+                for r in s.run(
+                    "MATCH (p:Proposal {workspace:$slug, status:'pending'}) "
+                    "RETURN p.sig AS sig",
+                    slug=slug,
+                ).data()
+            }
+            ids: list[str] = []
             for p in proposals:
+                sig = _proposal_signature(p)
+                if sig in existing:
+                    continue
+                existing.add(sig)
                 pid = uuid.uuid4().hex[:12]
                 s.run(
                     "MERGE (p:Proposal {pid:$pid}) "
-                    "SET p.workspace=$slug, p.kind=$kind, p.status='pending', "
+                    "SET p.workspace=$slug, p.kind=$kind, p.status='pending', p.sig=$sig, "
                     "p.summary=$summary, p.evidence=$evidence, p.doc=$doc, "
                     "p.confidence=$confidence, p.payload=$payload "
                     "WITH p MATCH (w:Workspace {slug:$slug}) MERGE (p)-[:PROPOSED_FOR]->(w)",
                     pid=pid,
                     slug=slug,
                     kind=p["kind"],
+                    sig=sig,
                     summary=_summarize(p),
                     evidence=p.get("evidence", ""),
                     doc=p.get("doc", ""),
@@ -350,6 +418,11 @@ class Neo4jStore:
                 )
                 ids.append(pid)
         return ids
+
+    def pending_signatures(self, slug: str) -> list[str]:
+        """Human-readable summaries of pending proposals, for the enrichment
+        prompt so Claude avoids re-proposing what's already queued."""
+        return [p["summary"] for p in self.list_proposals(slug)]
 
     def list_proposals(self, slug: str, status: str = "pending") -> list[dict]:
         with self._driver.session() as s:
@@ -371,23 +444,39 @@ class Neo4jStore:
             ).single()
         return rec is not None
 
-    def approve_proposal(self, pid: str) -> bool:
-        """Materialise a pending proposal into the graph, then mark it approved."""
+    def approve_proposal(self, pid: str) -> dict:
+        """Materialise a pending proposal into the graph and mark it approved,
+        in one transaction (so it can't end up applied-but-still-pending).
+
+        Returns a result dict with ``status``:
+        ``applied`` | ``notfound`` | ``conflict`` (and ``slug``/``summary`` for
+        the operator to confirm they approved the right thing). A ``conflict``
+        means the proposal would overwrite an existing fact with equal/higher
+        confidence and a different value; nothing is written.
+        """
         import json
 
-        with self._driver.session() as s:
-            rec = s.run(
+        def _txn(tx):
+            rec = tx.run(
                 "MATCH (p:Proposal {pid:$pid}) "
-                "RETURN p.payload AS payload, p.workspace AS slug, p.status AS status",
+                "RETURN p.payload AS payload, p.workspace AS slug, "
+                "p.status AS status, p.summary AS summary",
                 pid=pid,
             ).single()
             if rec is None or rec["status"] != "pending":
-                return False
+                return {"status": "notfound"}
             p = json.loads(rec["payload"])
-            slug = rec["slug"]
-            _apply_proposal(s, slug, p)
-            s.run("MATCH (p:Proposal {pid:$pid}) SET p.status='approved'", pid=pid)
-        return True
+            slug, summary = rec["slug"], rec["summary"]
+            conflict = _fact_conflict(tx, slug, p)
+            if conflict is not None:
+                return {"status": "conflict", "slug": slug, "summary": summary,
+                        "existing": conflict}
+            _apply_proposal(tx, slug, p)
+            tx.run("MATCH (p:Proposal {pid:$pid}) SET p.status='approved'", pid=pid)
+            return {"status": "applied", "slug": slug, "summary": summary}
+
+        with self._driver.session() as s:
+            return s.execute_write(_txn)
 
 
 def _summarize(p: dict) -> str:
@@ -402,69 +491,121 @@ def _summarize(p: dict) -> str:
     return p["kind"]
 
 
-def _apply_proposal(session, slug: str, p: dict) -> None:
-    """Write one approved proposal into the graph, tagged as machine-extracted."""
+def _import_tx(tx, meta: dict, entities: list[dict], edges: list[dict], docs: list[dict]) -> None:
+    """Apply a whole workspace import inside one write transaction."""
+    slug = meta["slug"]
+    tx.run(
+        "MERGE (w:Workspace {slug:$slug}) "
+        "SET w.name=$name, w.aliases=$aliases, w.description=$desc, w.search=$search",
+        **meta,
+    )
+    for e in entities:
+        tx.run(
+            f"MERGE (n:Entity {{uid:$uid}}) "
+            f"SET n:`{e['label']}`, n.id=$id, n.name=$name, n.type=$type, "
+            f"n.aliases=$aliases, n.workspace=$slug, n.search=$search "
+            f"WITH n MATCH (w:Workspace {{slug:$slug}}) MERGE (n)-[:IN_WORKSPACE]->(w)",
+            uid=e["uid"], id=e["id"], name=e["name"], type=e["type"],
+            aliases=e["aliases"], slug=slug, search=e["search"],
+        )
+        for f in e["facts"]:
+            tx.run(
+                "MATCH (n:Entity {uid:$uid}) MERGE (fct:Fact {uid:$fuid}) "
+                "SET fct.key=$key, fct.value=$value, fct.unit=$unit, fct.note=$note, "
+                "fct.source=$source, fct.confidence=$confidence, fct.search=$search "
+                "MERGE (n)-[:HAS_FACT]->(fct)",
+                uid=e["uid"], fuid=f["fuid"], key=f["key"], value=f["value"],
+                unit=f["unit"], note=f["note"], source=f["source"],
+                confidence=f["confidence"], search=f["search"],
+            )
+    for ed in edges:
+        tx.run(
+            f"MATCH (a:Entity {{uid:$auid}}), (b:Entity {{uid:$buid}}) "
+            f"MERGE (a)-[r:`{ed['rel']}`]->(b) "
+            f"SET r.weight=$weight, r.confidence=$confidence, r.relation=$relation",
+            auid=ed["auid"], buid=ed["buid"], weight=ed["weight"],
+            confidence=ed["confidence"], relation=ed["relation"],
+        )
+    for d in docs:
+        tx.run(
+            "MERGE (doc:Doc {uid:$duid}) "
+            "SET doc.path=$path, doc.name=$name, doc.text=$text, doc.workspace=$slug "
+            "WITH doc MATCH (w:Workspace {slug:$slug}) MERGE (doc)-[:IN_WORKSPACE]->(w)",
+            duid=d["duid"], path=d["path"], name=d["name"], text=d["text"], slug=slug,
+        )
+
+
+def _fact_conflict(tx, slug: str, p: dict) -> dict | None:
+    """If approving a fact proposal would clobber an existing fact that is at
+    least as confident but has a *different* value, return the existing fact so
+    the caller can refuse. Same-value re-approval and lower-confidence existing
+    facts are not conflicts."""
+    if p.get("kind") != "fact":
+        return None
+    fuid = f"{_uid(slug, p['entity_id'])}#{p['key']}"
+    rec = tx.run(
+        "MATCH (f:Fact {uid:$fuid}) "
+        "RETURN f.value AS value, f.confidence AS confidence, f.source AS source",
+        fuid=fuid,
+    ).single()
+    if rec is None:
+        return None
+    existing_conf = rec["confidence"] if rec["confidence"] is not None else 1.0
+    proposed_conf = p.get("confidence", 0.5)
+    if str(rec["value"]) != str(p.get("value")) and existing_conf >= proposed_conf:
+        return {"value": rec["value"], "confidence": existing_conf, "source": rec["source"]}
+    return None
+
+
+def _apply_proposal(tx, slug: str, p: dict) -> None:
+    """Write one approved proposal into the graph, tagged as machine-extracted.
+    New entities created as a side effect are linked into the workspace; the
+    workspace node is MATCHed (never MERGEd) so a stray duplicate can't appear."""
     source = f"claude-extraction:{p.get('doc')}" if p.get("doc") else "claude-extraction"
     kind = p["kind"]
 
     if kind == "entity":
-        uid = _uid(slug, p["id"])
-        session.run(
+        tx.run(
             f"MERGE (e:Entity {{uid:$uid}}) "
             f"SET e:`{_label(p.get('type','thing'))}`, e.id=$id, e.name=$name, e.type=$type, "
             f"e.aliases=$aliases, e.workspace=$slug, e.search=$search "
             f"WITH e MATCH (w:Workspace {{slug:$slug}}) MERGE (e)-[:IN_WORKSPACE]->(w)",
-            uid=uid,
-            id=p["id"],
-            name=p["name"],
-            type=p.get("type", "thing"),
-            aliases=p.get("aliases") or [],
-            slug=slug,
-            search=" ".join([p["name"], p["id"], *(p.get("aliases") or [])]),
+            uid=_uid(slug, p["id"]), id=p["id"], name=p["name"],
+            type=p.get("type", "thing"), aliases=p.get("aliases") or [], slug=slug,
+            search=_entity_search(p["name"], p["id"], p.get("aliases") or []),
         )
 
     elif kind == "fact":
         uid = _uid(slug, p["entity_id"])
-        fuid = f"{uid}#{p['key']}"
-        session.run(
+        tx.run(
             "MERGE (e:Entity {uid:$uid}) "
             "ON CREATE SET e.id=$eid, e.name=$eid, e.type='thing', e.workspace=$slug, e.search=$eid "
-            "MERGE (e)-[:IN_WORKSPACE]->(:Workspace {slug:$slug}) "
+            "WITH e MATCH (w:Workspace {slug:$slug}) MERGE (e)-[:IN_WORKSPACE]->(w) "
             "MERGE (f:Fact {uid:$fuid}) "
             "SET f.key=$key, f.value=$value, f.unit=$unit, f.note=$note, "
             "f.source=$source, f.confidence=$confidence, f.search=$search "
             "MERGE (e)-[:HAS_FACT]->(f)",
-            uid=uid,
-            eid=p["entity_id"],
-            slug=slug,
-            fuid=fuid,
-            key=p["key"],
-            value=p.get("value"),
-            unit=p.get("unit"),
-            note=p.get("note"),
-            source=source,
-            confidence=p.get("confidence", 0.5),
+            uid=uid, eid=p["entity_id"], slug=slug, fuid=f"{uid}#{p['key']}",
+            key=p["key"], value=p.get("value"), unit=p.get("unit"), note=p.get("note"),
+            source=source, confidence=p.get("confidence", 0.5),
             search=p["key"].replace("_", " "),
         )
 
     elif kind == "relationship":
-        rel = re.sub(r"[^A-Za-z0-9_]", "_", p["relation"]).upper() or "RELATED_TO"
-        session.run(
+        rel = _rel_type(p["relation"])
+        tx.run(
             f"MERGE (a:Entity {{uid:$auid}}) "
             f"ON CREATE SET a.id=$sid, a.name=$sid, a.type='thing', a.workspace=$slug, a.search=$sid "
             f"MERGE (b:Entity {{uid:$buid}}) "
             f"ON CREATE SET b.id=$tid, b.name=$tid, b.type='thing', b.workspace=$slug, b.search=$tid "
+            f"WITH a, b MATCH (w:Workspace {{slug:$slug}}) "
+            f"MERGE (a)-[:IN_WORKSPACE]->(w) MERGE (b)-[:IN_WORKSPACE]->(w) "
             f"MERGE (a)-[r:`{rel}`]->(b) "
             f"SET r.weight=$weight, r.confidence=$confidence, r.relation=$relation, r.source=$source",
-            auid=_uid(slug, p["source"]),
-            buid=_uid(slug, p["target"]),
-            sid=p["source"],
-            tid=p["target"],
-            slug=slug,
-            weight=p.get("weight", 1.0),
-            confidence=p.get("confidence", 0.5),
-            relation=p["relation"],
-            source=source,
+            auid=_uid(slug, p["source"]), buid=_uid(slug, p["target"]),
+            sid=p["source"], tid=p["target"], slug=slug,
+            weight=p.get("weight", 1.0), confidence=p.get("confidence", 0.5),
+            relation=p["relation"], source=source,
         )
 
 
@@ -487,4 +628,6 @@ def _entity_from(node, fact_nodes) -> Entity:
         name=node["name"],
         aliases=node.get("aliases") or [],
         facts=facts,
+        uid=node.get("uid"),
+        workspace=node.get("workspace"),
     )
