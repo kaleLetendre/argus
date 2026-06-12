@@ -11,10 +11,11 @@ structural decision is made, it gets an entry here before code changes.
 
 **This is design, not yet built.** The existing code still has the old layout
 (`store/ knowledge/ enrich/ workspace/`); the systems, contracts, and memory model
-below are the agreed target, captured in decisions **D1-D63**. The system directories
+below are the agreed target, captured in decisions **D1-D64**. The system directories
 now exist (`interaction/ agents/ memory/`, each with a plain-language `system_goal.txt`
-and a `design.md`, plus `contracts/` and this doc), but no compartment code has moved
-into them yet.
+and a `design.md`, plus `contracts/` and this doc). The D1 file-move was **started by an
+outside tool** (2026-06-11, unreviewed WIP: old layout deleted; a simple CLI +
+orchestrator under the new dirs); review before building on it.
 
 **Four design reviews run and resolved (D38-D52); the design has converged and Stage-1 scope
 is set (D52). Next is building the static-recall baseline, not more design.**
@@ -43,8 +44,10 @@ the one-candidate denial Question); its only non-cosmetic findings sat inside D6
 rule. **Round 13 produced D62** (per-origin polarity supersession: a source can retract;
 the tie-point outcome; the routing-scope pin), its one blocking find inside D61c's
 interaction with D59a. **A user review of D61/D62 produced D63** (a Source is the speaker,
-never the platform; false-conflict resolution punishes no one; lifecycle phrasing pinned).
-The review loop continues until a clean round, one round per user go. Doc-level reconciliation; the D52
+never the platform; false-conflict resolution punishes no one; lifecycle phrasing pinned)
+**and D64** (contested recall requires structural contradiction, not just margin; where
+LLM judgment lives; how study surfaces semantic conflicts). The review loop continues
+until a clean round, one round per user go. Doc-level reconciliation; the D52
 build verdict stands.
 
 **Next steps, in order:**
@@ -152,6 +155,30 @@ Captured in D18-D22. Diagrams (compartments, task routing, scaling) live in
 
 Newest first. Each decision is small, dated, and states the *why* so it can be
 revisited deliberately rather than drifted away from.
+
+### D64 - Where the dumb check ends and the LLM begins (2026-06-11)
+A user question pinned a real gap in the contested-recall trigger. (a) **Contested recall
+= within `margin` AND structurally contradicting** (the D60a test: same
+`{entity, attribute, qualifier}`, different value/unit/polarity). Qualifier-distinguished
+candidates ("18 when cold" vs "13 when hot") are **disambiguation**, never a contest: the
+agent asks "cold or hot?" or presents both; no Question minted. As previously written,
+"top candidates within margin" alone would have minted a false contest for every
+qualified pair. (b) **Where LLM judgment lives, stated explicitly**: memory's checks are
+pure field comparison, no meaning anywhere. The judgment happens (1) at **intake**: the
+extractor turns words into the structured claim and **normalizes units/phrasing where
+unambiguous**; and (2) **post-recall**: the orchestrator reviews a flagged contest before
+speaking and may close a false one immediately (a unit conversion, 18 ft-lb vs 24.4 Nm,
+is the same spec: an equivalence / D63b false-conflict close). Unit-conversion false
+contests are an **accepted Stage-1 cost**: Questions are cheap, one look closes them,
+decay prunes them. Semantic contradictions beyond structure ("a quarter turn past snug"
+vs "18 ft-lb") are **study's job**, offline. (c) **How study's finding becomes a
+Question** (the mechanism that looks like agent-minting but is not): the studier
+**writes the normalized claim** ("24.4 Nm" re-expressed as "18 ft-lb" on the same key);
+the write collides structurally and memory's surprise detector mints the Question as a
+side effect. The agent makes the conflict structural; memory does the minting; the
+no-create_question invariant holds. See
+[memory/graph/lifecycle.md](memory/graph/lifecycle.md),
+[agents/design.md](agents/design.md).
 
 ### D63 - Source granularity; false-conflict resolution (user review of D61/D62) (2026-06-11)
 User-driven corrections from walking the recent rounds together. (a) **A Source is the

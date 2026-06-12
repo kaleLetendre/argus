@@ -3,7 +3,7 @@
 Dense briefing for a fresh Claude picking up the design. **Nothing is built yet**, this is
 all design. Canonical truth lives in the docs under `argus/` (this file summarizes; when in
 doubt, the linked docs win). Decision log is the spine: `argus/architecture.md` (newest
-first, D1-D63, with supersede/amend notes).
+first, D1-D64, with supersede/amend notes).
 
 Project conventions: append-only decision log (never rewrite history, add a new dated
 decision that supersedes). Docs live **next to the system they describe** (no `docs/`
@@ -159,7 +159,7 @@ per-session).
 
 ```
 system_goal.txt            whole-system charter (plain language)
-architecture.md            master design + decision log D1-D63 (the spine)
+architecture.md            master design + decision log D1-D64 (the spine)
 runtime-topology.md        processes, tasks, queue, scaling, two research lanes
 architecture.drawio        3-page diagram (compartments, task routing, scaling)
 CONTEXT.md                 this file
@@ -169,9 +169,12 @@ memory/       system_goal.txt + design.md (typed-MCP container)
   graph/      design.md + memory-model.md (the model) + lifecycle.md (mechanics) + mcp.md (tools)
 contracts/    interaction-agents.md, memory-interaction.md, mcp-pattern.md
 ```
-(Existing code still has the OLD layout: `store/ knowledge/ enrich/ workspace/`. The D1
-file-move into `interaction/ agents/ memory/` has NOT happened, only the design dirs +
-docs exist.)
+(The D1 file-move was **started by Gemini** (2026-06-11, **unreviewed**): the old layout
+(`store/ knowledge/ enrich/ workspace/`) was deleted and a simple CLI + orchestrator now
+live under `interaction/ agents/ contracts/`, committed as WIP. Review that code before
+building on it. Gemini also **deleted the entire design-doc corpus** in the same session;
+it was reconstructed byte-exact from Claude session transcripts and is now COMMITTED in
+git, never untracked again.)
 
 ---
 
@@ -322,7 +325,13 @@ not a source; a particular user is; the platform only sets the type prior);
 "18" -> "18 cold" / "13" -> "13 hot": no loser, no source punished, outcome 1); lifecycle
 phrasing pinned (a denial Question = "the source says not-X: what is it actually";
 decompose = suspect-but-don't-know, knowing the mapping resolves directly by
-requalification).
+requalification). D64 (user review): contested recall = within margin AND structurally
+contradicting (qualifier-distinguished candidates are disambiguation, never a contest);
+LLM judgment lives at intake (extractor structures + normalizes, units incl.) and
+post-recall (orchestrator reviews flagged contests, closes false ones like unit
+conversions immediately; accepted Stage-1 cost); study surfaces semantic conflicts by
+writing the normalized claim so memory's detector mints (no agent ever creates a Question
+directly).
 
 Superseded: D2, D6, D7 (mesh/leaf/core), D31 (-> D38), workspace-isolation hard rule (->
 D41), D50b cascade (-> D51a). (D9/D12 superseded by D31, then restored by D38.)
@@ -358,8 +367,14 @@ produced D61 (partition pinned, the remainder child, the one-candidate denial), 
 non-cosmetic findings confined to D60b's single new rule; round 13 audited D61 and
 produced D62 (a source can retract; the tie outcome; the routing-scope pin), its one
 blocking find inside D61c x D59a; a user review of D61/D62 produced D63 (speaker-level
-sources, false-conflict resolution, lifecycle phrasing). The loop now runs **one round
-per explicit user go**, decisions presented before applied. After the clean round: the
+sources, false-conflict resolution, lifecycle phrasing) and D64 (the contested-recall
+trigger pinned; where LLM judgment lives). The loop now runs **one round per explicit
+user go**, decisions presented before applied; **round 14 has not run yet** (it audits
+D62-D64). Also on 2026-06-11: Gemini deleted the doc corpus (recovered byte-exact from
+session transcripts, now git-committed) and started the D1 code move (unreviewed WIP).
+After the clean round: the stage/milestone restructure (M0 move code / M1 it remembers /
+M2 it learns / M3 it listens / M4 it spreads out; agreed in principle), then plan the
+build. After the clean round: the
 stage/milestone restructure (agreed in principle, pending), then plan the build. Verdict: architecture sound and buildable;
 the remaining softness is the claim write-path (qualifier matching, "topic",
 spreading-activation algorithm) which **hardens against real data, not another review**.

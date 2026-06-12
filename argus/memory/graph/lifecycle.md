@@ -68,13 +68,21 @@ real-world outcome (Section 6a).
 
 | Trigger | Where | Signal |
 |---|---|---|
-| contested recall | answer-time | top candidates within `margin` |
+| contested recall | answer-time | top candidates within `margin` **and structurally contradicting** (the D60a test: same `{entity, attribute, qualifier}`, different value/unit/polarity, D64a); qualifier-distinguished candidates ("18 cold" vs "13 hot") are **disambiguation** for the agent, never a contest |
 | weak best | answer-time | best candidate's discounted confidence below the bar |
 | gap | answer-time | nothing matched |
 | **surprise** | intake (`remember`) | new claim contradicts a high-confidence belief |
 | latent conflict/gap | study | consistency scan |
 
-Cheap and liberal; salience emergent (Section 7 prunes the unimportant). Before minting,
+Cheap and liberal; salience emergent (Section 7 prunes the unimportant). **Where LLM
+judgment lives (D64b):** every check in this file is pure field comparison, no meaning.
+The judgment happens at **intake** (the extractor structures and normalizes the claim,
+units included where unambiguous) and **post-recall** (the orchestrator reviews a flagged
+contest before speaking and may close a false one immediately: a unit conversion is the
+same spec, an equivalence / D63b close). Unit-conversion false contests are an accepted
+Stage-1 cost. Semantic contradictions beyond structure are **study's** job, and study
+surfaces them by **writing the normalized claim** so the surprise detector mints the
+Question structurally (the agent never mints directly, D64c). Before minting,
 memory **searches for an existing open Question matching the contest** on `entity`+`attribute`
 (D44) and **refreshes** it instead of duplicating (dedup, D43). The search also matches
 **closed** Questions on the same key: a closed hit is never refreshed; the new Question

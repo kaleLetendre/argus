@@ -46,7 +46,7 @@ tier.
 | Role | Job | Tools | Tier |
 |---|---|---|---|
 | **orchestrator** | take the utterance, route intent, run the recall loop, hit the D30 gate, compose the reply | `recall`, `search`, `remember`, `set_importance`, `activate`, `track_event`, `note_surfaced` | capable |
-| **extractor** | pull facts into **structured** `remember` calls (`{entity, attribute, value, unit?, qualifier?, claim_type?, polarity, mode}`, D44/D46/D54); resolve ids + decide assert/update | `search`, `recall`, `remember` (D51e) | mid |
+| **extractor** | pull facts into **structured** `remember` calls; **normalize** units/phrasing where unambiguous (memory compares fields only, D64b) (`{entity, attribute, value, unit?, qualifier?, claim_type?, polarity, mode}`, D44/D46/D54); resolve ids + decide assert/update | `search`, `recall`, `remember` (D51e) | mid |
 | **researcher** | resolve an open question with independent, authoritative evidence; deliver user-requested results | web search, fetch, `search`, `recall` (`nudge:false`), `remember`, `push` (results, D55c) | capable |
 | **studier** | derive / check consistency / propose associations over a graph region; orchestrate **quiz sub-calls** and land resolutions with their earned `rigor`; run D48 meta-reviews | `recall` (`nudge:false`), `neighbors`, `remember`, `revise_question` (D56a) | capable |
 | **quizzer** | adversarially refute a claim before it hardens (the self-test); a **sub-role**: runs as sub-calls inside the studier's task (D56b), verdict lands via the studier's `remember rigor:"quizzed"` | read-only (`recall` with `nudge:false`, D55e) | mid |
@@ -71,7 +71,11 @@ memory's bookkeeping:
 1. **Route intent** - telling (`remember`) vs asking (`recall`) vs signaling relevance
    (`set_importance`) vs describing a pending real-world outcome (`track_event`, D39).
 2. **Extract** - which claims in what was said are worth `remember`-ing.
-3. **Gate (D30)** - after a recall, answer vs research vs ask.
+3. **Gate (D30)** - after a recall, answer vs research vs ask. The gate also **reviews
+   flagged contests** before speaking (memory's check is structural only): a false
+   contest (unit conversion, equivalence) is closed immediately as a D63b false
+   conflict; qualifier-distinguished candidates are a disambiguation ("cold or hot?"),
+   never a contest (D64).
 
 Conversational intake runs the **extractor synchronously inside the turn**, so the
 orchestrator receives `remember`'s ApplyResult flags and can narrate a surprise in the
