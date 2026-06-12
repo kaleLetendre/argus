@@ -7,10 +7,10 @@ name = "argus"
 version = "0.0.1"
 description = "Voice-navigable, context-aware garage assistant (workspace system)"
 requires-python = ">=3.10"
-dependencies = ["PyYAML>=6.0", "neo4j>=6.0", "claude-agent-sdk>=0.2"]
+dependencies = ["PyYAML>=6.0", "claude-agent-sdk>=0.2", "google-generativeai>=0.5"]
 
 [project.scripts]
-argus = "argus.cli:main"
+argus = "argus.interaction.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["argus*"]

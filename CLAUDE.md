@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Argus is a voice-navigable, context-aware assistant for a garage. The end goal:
+Argus is a voice-navigable, context-aware assistant. The end goal:
 microphones (and later cameras) let the user speak a command to move Argus into
 a **context** ("argus, open project cressida"), then ask questions answered from
 that context's knowledge ("torque spec on the cam caps for my current engine").
@@ -74,11 +74,14 @@ format, not the runtime source. At runtime everything queries Neo4j.
   Returns an `Answer` with provenance; surfaces fact `confidence` when < 1.0.
 - `argus/enrich/` — Claude ruminates over a project's docs to grow its graph.
   - `llm.py` — one-shot call to Claude via the **Claude Agent SDK**
-    (`claude-agent-sdk`), driving the local logged-in `claude` CLI. **Hard rule:
-    subscription only, never API credits** — it strips
-    `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` from the SDK subprocess env so it
-    can only use the subscription session (fails rather than billing if the CLI
-    isn't logged in). Locked to pure reasoning: no tools, `setting_sources=[]`
+    (`claude-agent-sdk`). The model connection is a **user-configured** adapter that
+    can reach an LLM (a local model, a separate inference server, a hosted API, a
+    subscription-backed CLI, ...); nothing is billable unless a billable connection is
+    configured. (The current code still strips
+    `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` to force the subscription session,
+    legacy enforcement of the old never-bill rule, superseded by D25 in the design
+    docs and to be revisited in the agents refactor.) Locked to pure reasoning: no
+    tools, `setting_sources=[]`
     (so it ignores this repo's CLAUDE.md), one turn.
   - `extractor.py` — builds the prompt (existing graph snapshot + docs), parses
     Claude's JSON proposals, caps machine `confidence` at 0.9. `enrich_workspace`
@@ -114,11 +117,15 @@ format, not the runtime source. At runtime everything queries Neo4j.
   `claude-extraction` with a capped confidence. A wrong torque spec is dangerous,
   so machine-inferred knowledge is reviewed and stays distinguishable from stated
   facts. Don't change this to auto-apply without the user.
-- **Never spend Anthropic API credits (hard rule).** All Claude calls go through
-  the user's subscription via the logged-in `claude` CLI. `enrich/llm.py` strips
-  `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` before every call to guarantee this.
-  Do not add an API-key fallback or a dual-mode toggle, and never put a key in
-  `.env`. The cost cap is the subscription; API credits would be uncapped spend.
+- **Model connection is user-configured (D25).** All model calls go through one
+  chokepoint in `agents` (today `enrich/llm.py`), to whatever connection the user has
+  set up: an opaque, swappable adapter that can reach an LLM (a local model, a separate
+  inference server, a hosted API, a subscription-backed CLI, ...). agents does not care
+  which. Protection against surprise cost is configuration, not prohibition: nothing is
+  billable unless the user configured a billable connection, so a user is never billed
+  for a connection they did not set up. (Supersedes the earlier subscription-only /
+  never-bill hard rule; the current key-stripping in `enrich/llm.py` is legacy until
+  the agents refactor.)
 - **Focus is inferred from conversation**, never set by an explicit command.
 - **No silently-chosen voice or embedding stack.** STT and the RAG embedding
   backend are still open. Doc search is currently Neo4j's Lucene full-text

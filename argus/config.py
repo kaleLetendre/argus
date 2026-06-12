@@ -1,8 +1,4 @@
-"""Runtime configuration, read from the environment (and a local .env file).
-
-Keeps connection details out of the code and out of git. ``.env`` is gitignored;
-see ``.env.example`` for the shape.
-"""
+"""Runtime configuration."""
 
 from __future__ import annotations
 
@@ -11,11 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-WORKSPACES_ROOT = REPO_ROOT / "workspaces"
 
 
 def _load_dotenv(path: Path = REPO_ROOT / ".env") -> None:
-    """Minimal .env loader (no dependency). Existing env vars win."""
     if not path.is_file():
         return
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -27,16 +21,17 @@ def _load_dotenv(path: Path = REPO_ROOT / ".env") -> None:
 
 
 @dataclass(frozen=True)
-class Neo4jConfig:
-    uri: str
-    user: str
-    password: str
+class LLMConfig:
+    provider: str
+    model: str
+    system_prompt: str = ""
 
 
-def neo4j_config() -> Neo4jConfig:
+def llm_config() -> LLMConfig:
     _load_dotenv()
-    return Neo4jConfig(
-        uri=os.environ.get("NEO4J_URI", "bolt://localhost:7687"),
-        user=os.environ.get("NEO4J_USER", "neo4j"),
-        password=os.environ.get("NEO4J_PASSWORD", ""),
+    return LLMConfig(
+        provider=os.environ.get("ARGUS_LLM_PROVIDER", "claude").lower(),
+        model=os.environ.get("ARGUS_LLM_MODEL", "opus"),
+        system_prompt=os.environ.get("ARGUS_SYSTEM_PROMPT", ""),
     )
+

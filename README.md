@@ -1,6 +1,6 @@
 # Argus
 
-A voice-navigable, context-aware assistant for the garage. You speak a command
+A voice-navigable, context-aware assistant. You speak a command
 to move Argus into a **context** ("argus, open project cressida"), then ask
 questions answered from that context's knowledge ("what's the torque spec on the
 cam caps for my current engine").
