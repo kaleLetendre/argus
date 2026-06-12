@@ -1,0 +1,197 @@
+<mxfile host="app.diagrams.net" type="device">
+  <diagram name="1. Compartments and contracts" id="page-compartments">
+    <mxGraphModel dx="900" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="640" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c-hid" value="&lt;b&gt;HID&lt;/b&gt;&lt;br&gt;process (one per device)&lt;br&gt;&lt;br&gt;initiator: input&lt;br&gt;the interaction loop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="320" y="40" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c-agents" value="&lt;b&gt;agents&lt;/b&gt;&lt;br&gt;process (later a pool)&lt;br&gt;&lt;br&gt;responder: no loop of its own&lt;br&gt;the thinking, only when summoned" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="90" y="320" width="250" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c-mem" value="&lt;b&gt;memory&lt;/b&gt;&lt;br&gt;process (single authority, Neo4j)&lt;br&gt;&lt;br&gt;initiator: clock (dreaming loop)&lt;br&gt;request/reply authority" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="520" y="320" width="250" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="e-hid-agents" value="HID ↔ agents" style="endArrow=classic;startArrow=classic;html=1;fontSize=11;strokeWidth=2;" edge="1" parent="1" source="c-hid" target="c-agents">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-agents-mem" value="agents ↔ memory" style="endArrow=classic;startArrow=classic;html=1;fontSize=11;strokeWidth=2;" edge="1" parent="1" source="c-agents" target="c-mem">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-mem-hid" value="memory ↔ HID" style="endArrow=classic;startArrow=classic;html=1;fontSize=11;strokeWidth=2;" edge="1" parent="1" source="c-hid" target="c-mem">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c-note" value="&lt;b&gt;Three processes. Communication is the only coupling.&lt;/b&gt;&lt;br&gt;&lt;br&gt;• Each compartment is its own process; they never import each other, only exchange serializable messages defined by a contract.&lt;br&gt;• Two initiators (HID on input, memory on a clock); agents only ever responds.&lt;br&gt;• Where a compartment runs (local / datacenter / storage server) is configuration. The contract is transport-agnostic." style="shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="90" y="470" width="680" height="130" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="2. Task routing" id="page-routing">
+    <mxGraphModel dx="900" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="640" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="r-hid" value="&lt;b&gt;HID&lt;/b&gt;&lt;br&gt;produces interactive" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="r-iw" value="&lt;b&gt;Reserved interactive resources&lt;/b&gt;&lt;br&gt;always available, a human waits&lt;br&gt;direct request/reply (no broker)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="270" y="80" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="r-mem" value="&lt;b&gt;memory&lt;/b&gt;&lt;br&gt;authority (Neo4j), request/reply&lt;br&gt;dreaming emits background tasks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="330" width="200" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="r-q" value="&lt;b&gt;background queue&lt;/b&gt;&lt;br&gt;(broker)" style="shape=process;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="300" y="340" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="r-router" value="&lt;b&gt;complexity router&lt;/b&gt;&lt;br&gt;reads 0-9 flag,&lt;br&gt;maps to a model (config)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="520" y="320" width="170" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="r-small" value="small model&lt;br&gt;complexity 0-4" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="740" y="300" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="r-big" value="big model&lt;br&gt;complexity 5-9" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="740" y="390" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="r-note" value="&lt;b&gt;Task envelope&lt;/b&gt; (same for both modes)&lt;br&gt;&lt;br&gt;id          unique: correlation + idempotency&lt;br&gt;mode        interactive | background&lt;br&gt;reply_to?   present iff interactive&lt;br&gt;complexity  0-9 (background routing; ignored if interactive)&lt;br&gt;intent      parse | reason | research | ...&lt;br&gt;context     the payload&lt;br&gt;schema?     expected structured output" style="shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;align=left;verticalAlign=top;spacingLeft=8;spacingTop=8;fontFamily=Courier New;" vertex="1" parent="1">
+          <mxGeometry x="540" y="60" width="330" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="re-hid-iw" value="interactive task / reply (request-reply)" style="endArrow=classic;startArrow=classic;html=1;fontSize=10;strokeWidth=2;" edge="1" parent="1" source="r-hid" target="r-iw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re-iw-mem" value="recall / write (request-reply)" style="endArrow=classic;startArrow=classic;html=1;fontSize=10;strokeWidth=2;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="r-iw" target="r-mem">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re-mem-q" value="background task (dreaming)" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="r-mem" target="r-q">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re-q-router" value="pull" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="r-q" target="r-router">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re-router-small" value="0-4" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="r-router" target="r-small">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re-router-big" value="5-9" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="1" source="r-router" target="r-big">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re-small-mem" value="write results" style="endArrow=classic;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="r-small" target="r-mem">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re-big-mem" value="write results" style="endArrow=classic;html=1;fontSize=10;dashed=1;" edge="1" parent="1" source="r-big" target="r-mem">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-label-int" value="INTERACTIVE: reserved capacity, direct, prioritized" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="270" y="185" width="320" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="r-label-bg" value="BACKGROUND: queue, routed by complexity to a model" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="300" y="430" width="360" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="3. Scaling stages" id="page-scaling">
+    <mxGraphModel dx="900" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="720" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="s1" value="Stage 1: one machine (development, or a single garage PC)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;verticalAlign=top;fontStyle=1;spacingTop=6;align=left;spacingLeft=10;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="30" width="790" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="s1-hid" value="HID&lt;br&gt;(keyboard)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="80" width="130" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s1-agents" value="agents: 1 worker&lt;br&gt;interactive prioritized&lt;br&gt;queue degenerate (queue-of-one)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="280" y="80" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s1-mem" value="memory + Neo4j" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="610" y="80" width="170" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s1e1" style="endArrow=classic;startArrow=classic;html=1;" edge="1" parent="1" source="s1-hid" target="s1-agents">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s1e2" style="endArrow=classic;startArrow=classic;html=1;" edge="1" parent="1" source="s1-agents" target="s1-mem">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s2" value="Stage 2: split the pool (one or two machines)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;verticalAlign=top;fontStyle=1;spacingTop=6;align=left;spacingLeft=10;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="200" width="790" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="s2-hid" value="HID" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="260" width="90" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="s2-iw" value="reserved&lt;br&gt;interactive worker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="190" y="255" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s2-broker" value="broker" style="shape=process;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="370" y="260" width="110" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="s2-bgw" value="background workers&lt;br&gt;small + big models" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="520" y="250" width="150" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="s2-mem" value="memory" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="700" y="260" width="90" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="s2e1" value="direct" style="endArrow=classic;startArrow=classic;html=1;fontSize=9;" edge="1" parent="1" source="s2-hid" target="s2-iw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s2e2" value="recall" style="endArrow=classic;startArrow=classic;html=1;fontSize=9;" edge="1" parent="1" source="s2-iw" target="s2-mem">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s2e3" value="enqueue" style="endArrow=classic;html=1;fontSize=9;" edge="1" parent="1" source="s2-mem" target="s2-broker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s2e4" value="pull" style="endArrow=classic;html=1;fontSize=9;" edge="1" parent="1" source="s2-broker" target="s2-bgw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s2e5" value="write" style="endArrow=classic;html=1;fontSize=9;dashed=1;" edge="1" parent="1" source="s2-bgw" target="s2-mem">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s3" value="Stage 3: distributed (same contracts and Task envelope; only endpoints + transports change)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;verticalAlign=top;fontStyle=1;spacingTop=6;align=left;spacingLeft=10;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="390" width="790" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-garage" value="Garage machine (local)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontStyle=1;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="55" y="440" width="240" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-hid" value="HID" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="75" y="480" width="90" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-iw" value="interactive&lt;br&gt;worker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="185" y="480" width="90" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-sm" value="small model" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="75" y="540" width="90" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-cache" value="memory may be&lt;br&gt;co-located here&lt;br&gt;(placement = config)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=9;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="185" y="540" width="90" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-dc" value="Datacenter slot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontStyle=1;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="320" y="440" width="240" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-broker" value="broker" style="shape=process;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="380" y="480" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-bgw" value="background workers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="340" y="545" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-bm" value="big model" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="455" y="545" width="90" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-store" value="Storage server (one example placement)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontStyle=1;spacingTop=6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="585" y="440" width="210" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-mem" value="memory authority&lt;br&gt;(Neo4j)&lt;br&gt;source of truth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="615" y="510" width="150" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s3e1" value="recall/write (net RPC)" style="endArrow=classic;startArrow=classic;html=1;fontSize=9;" edge="1" parent="1" source="s3-iw" target="s3-mem">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s3e2" value="background tasks" style="endArrow=classic;html=1;fontSize=9;" edge="1" parent="1" source="s3-mem" target="s3-broker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s3e3" value="write results" style="endArrow=classic;html=1;fontSize=9;dashed=1;" edge="1" parent="1" source="s3-bgw" target="s3-mem">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,13 @@
+memory is where Argus keeps what it knows. It stores information and gives it back
+when agents asks for it. It is the only part that holds knowledge; the others do not
+keep their own copy, they ask memory.
+
+That is the whole job: be the single place knowledge lives and can be looked up. How
+it stores and finds things inside is its own private choice and can be swapped
+without affecting anything else, as long as it stores what it is given and returns
+what is asked.
+
+memory does not talk to the user and does not do the reasoning itself; when thinking
+is needed, that is agents' job. A memory may also maintain itself on its own
+schedule, which is the one case where it can start activity instead of only
+responding.

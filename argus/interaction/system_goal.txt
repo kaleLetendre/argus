@@ -1,0 +1,20 @@
+interaction is the part that handles the back-and-forth between a user and Argus.
+It is the user interface, just not assumed to be a screen: any way a person
+communicates with Argus, and any way Argus responds.
+
+Coming in: it takes what the user deliberately says or types and turns it into a
+clean message for agents. Different devices (a keyboard, a microphone) produce the
+same kind of message, so the rest of Argus does not care how the words arrived.
+
+Going out: it takes Argus's replies and presents them to the user (text, speech, and
+later more).
+
+That is all it does. It does not think, decide, or store knowledge. It is only for a
+user who is intentionally communicating and expects a response. That is what
+separates it from sensors (passive information gathering, no reply expected) and
+actuators (devices that act on the world, like motors).
+
+interaction is one of the parts that can start activity: when a user gives input, it
+starts a turn by handing a message to agents, then presents the reply that comes
+back. It is built from swappable adapters, one per device, so new ways to interact
+can be added without changing the rest of Argus.

@@ -1,0 +1,12 @@
+agents is the thinking part of Argus. When it is handed a request, it runs that
+request from start to finish: it works out what is being asked, gets whatever it
+needs from memory, decides what to do, and produces the reply. It makes all the model
+calls, through the one connection the user configured.
+
+agents holds no knowledge of its own and owns no devices. It only borrows knowledge
+from memory and hands words back to interaction.
+
+agents never starts on its own. It has no loop; it only acts when something hands it a
+job, either a user request from interaction, or a request from memory's background
+loop asking it to reason about something. When it is not handed work, it does
+nothing.

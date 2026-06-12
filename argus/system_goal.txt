@@ -1,0 +1,13 @@
+Argus is an AI system made of separate systems that only talk to each other
+through clear, fixed messages. interaction handles input and output (it
+takes in what you say or type and shows or speaks the reply). agents does the thinking: it
+runs each request and makes the model calls. memory stores and recalls what Argus
+knows. Because they only pass messages and never share code, you can put each one on
+the same computer or on different computers just by changing settings, and you can
+replace any one of them with a different version as long as it still sends and
+answers the same messages. interaction starts work when input comes in, and
+memory may also start work on its own to maintain itself. agents never starts on its
+own; it only works when it is handed a job. Later you can add new parts the same way,
+by giving them their own messages to the existing parts, without changing what is
+already there. The same setup runs as one program on one machine or as many programs
+spread across machines, and it grows by adding parts instead of being rebuilt.
