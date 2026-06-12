@@ -11,7 +11,7 @@ structural decision is made, it gets an entry here before code changes.
 
 **This is design, not yet built.** The existing code still has the old layout
 (`store/ knowledge/ enrich/ workspace/`); the systems, contracts, and memory model
-below are the agreed target, captured in decisions **D1-D60**. The system directories
+below are the agreed target, captured in decisions **D1-D61**. The system directories
 now exist (`interaction/ agents/ memory/`, each with a plain-language `system_goal.txt`
 and a `design.md`, plus `contracts/` and this doc), but no compartment code has moved
 into them yet.
@@ -37,9 +37,11 @@ supersession, frozen involved set, the reopens edge, claim-level match-or-create
 `note_surfaced`): the revision machinery now composes end to end. **Round 10 audited D58
 and produced D59** (idempotent attestation, unit in the match key, partitioned decompose,
 the recall question refs, `delivered(ref)`, lineage-head dedup at agents). **Round 11
-produced D60** (unit-aware surprise, decompose boundary rules, cross-via collapse). The
-review loop continues until a clean round. Doc-level reconciliation; the D52 build verdict
-stands.
+produced D60** (unit-aware surprise, decompose boundary rules, cross-via collapse).
+**Round 12 produced D61** (the partition pinned on entity+attribute; the remainder child;
+the one-candidate denial Question); its only non-cosmetic findings sat inside D60b's new
+rule. The review loop continues until a clean round. Doc-level reconciliation; the D52
+build verdict stands.
 
 **Next steps, in order:**
 1. *(refactor)* The D1 file-move: move existing code into `interaction/ agents/ memory/graph/`,
@@ -147,7 +149,38 @@ Captured in D18-D22. Diagrams (compartments, task routing, scaling) live in
 Newest first. Each decision is small, dated, and states the *why* so it can be
 revisited deliberately rather than drifted away from.
 
-### D60 - Round-11 closures: unit-aware surprise, decompose boundaries, cross-via collapse (2026-06-11)
+### D61 - Round-12 closures: the decompose partition pinned; the remainder child (2026-06-11)
+Round 12 found both its non-cosmetic defects inside D60b's partition rule; the core model
+held a seventh straight round. (a) **Partition matches on `{entity, attribute}`; qualifier
+discriminates only when the candidate carries one.** An unqualified candidate matches
+**all** children sharing its `{entity, attribute}` and splits its weight among them; a
+qualified candidate matches only the qualifier-equal child. D60b's per-child key
+`{entity, attribute, qualifier?}` under Stage-1 **exact** qualifier matching made the
+qualifier-split decompose a no-op: the pre-split contest's candidates are unqualified, so
+they matched no child, children were born with zero candidate edges, and the split rule
+could never fire in the exact scenario it was written for. (b) **Unmatched candidates move
+to an automatic remainder child** carrying the parent's own key, born like any child
+(parent's uncertainty, `{none, 0}` snapshot, re-derived at first recall). Supersedes
+D60b's "stays on the parent at ~1": that rule gave the remainder a discount proxied by
+`max(open children)`, which tracked siblings unrelated to the remainder's contest and
+vanished when they closed, leaving an unresolved contest undiscounted until a later recall
+re-minted it. With the remainder child, the parent is always **pure bookkeeping** (max of
+open children; close rules D58d/D60e unchanged), the remainder is a first-class open
+Question, and the agent may explicitly abandon it if it is truly moot. (Also corrects
+D60e's "zeroed edges" phrasing: post-D61 the parent's edges genuinely are ~0 again; every
+candidate lives on a child.) (c) **The polarity-only surprise is defined**: a bare denial
+of an existing claim (same content key, opposite polarity, which claim-level
+match-or-create routes to the same node) mints a **one-candidate** Question: the contest
+is the node's own polarity-mixed attestation sum, the snapshot is the claim's pre-denial
+confidence, and outcome = 1 if the prior belief survives resolution, 0 if its derived
+confidence flips negative. (d) Hygiene: markers added to D43/D44 (surprise comparison
+amended by D60a), D48 (freshness derived per D51b; actions extended by D57a/D58b), D59
+(its next-turn-resolves_ref claim corrected by D60d); mcp's attestation-idempotency note
+gains the D60c cross-via collapse clause. See
+[memory/graph/lifecycle.md](memory/graph/lifecycle.md),
+[memory/graph/mcp.md](memory/graph/mcp.md).
+
+### D60 - Round-11 closures: unit-aware surprise, decompose boundaries, cross-via collapse (2026-06-11) - (b) partition rule superseded by D61a/b (entity+attribute partition; the remainder child)
 Round 11 audited D59 and found five boundary defects in its new rules; the core model held
 a sixth straight round. (a) **The surprise/conflict test is the complement of the match
 key**: same `{entity, attribute, qualifier}`, different `(value, unit)` or polarity. D59b
@@ -184,7 +217,7 @@ user's own utterance). See [memory/graph/lifecycle.md](memory/graph/lifecycle.md
 [agents/design.md](agents/design.md),
 [contracts/interaction-agents.md](contracts/interaction-agents.md).
 
-### D59 - Round-10 closures: idempotent attestation, the unit key, partitioned decompose, the missing carriers (2026-06-11) - boundary rules amended by D60 (surprise key, decompose extremes, cross-via)
+### D59 - Round-10 closures: idempotent attestation, the unit key, partitioned decompose, the missing carriers (2026-06-11) - boundary rules amended by D60 (surprise key, decompose extremes, cross-via); (e)'s next-turn-resolves_ref claim corrected by D60d (topic-match)
 Round 10 audited the D58 patch set and found five blocking defects in the new machinery
 plus two contradictions; the core model held a fifth straight round. (a) **Attestation is
 idempotent**: one attestation per `(source, claim, polarity, via)`; a repeat refreshes
@@ -529,7 +562,7 @@ self-training into distrust of the user and growing argumentative over time. Wit
 update-vs-assert, a user *state change* is a supersession, not the user "being wrong." See
 [memory/graph/memory-model.md](memory/graph/memory-model.md).
 
-### D48 - Question freshness; rot -> meta-review (reframe / decompose / delete) (2026-06-08)
+### D48 - Question freshness; rot -> meta-review (reframe / decompose / delete) (2026-06-08) - freshness made derived by D51b; actions extended by D57a (park) and D58b (resume)
 Each Question carries a **freshness** value: it decays on each unresolved research attempt or
 surfacing and **refreshes on genuine progress**. When freshness rots past a threshold, study
 hands the question to an agent for a **meta-review** that **reframes** it (a better-posed
@@ -582,7 +615,7 @@ session"). See [memory/graph/memory-model.md](memory/graph/memory-model.md),
 [memory/graph/lifecycle.md](memory/graph/lifecycle.md),
 [contracts/interaction-agents.md](contracts/interaction-agents.md).
 
-### D44 - Structured claims at the remember/Question boundary (2026-06-08)
+### D44 - Structured claims at the remember/Question boundary (2026-06-08) - surprise comparison amended by D60a (complement of the match key, incl. unit)
 The keystone the second review surfaced. `remember` carries a **structured claim**
 `{ entity, attribute, value, unit?, polarity }` (plus optional original `text` for
 display/provenance), **not an opaque string**. The agent (the **extractor** role, a model,
@@ -598,7 +631,7 @@ makes the whole D35/D43 machinery work while keeping memory model-free. See
 [memory/graph/memory-model.md](memory/graph/memory-model.md),
 [memory/graph/mcp.md](memory/graph/mcp.md).
 
-### D43 - Reward/Question mechanics finalized (2026-06-08) - snapshot semantics amended by D45e/D54b
+### D43 - Reward/Question mechanics finalized (2026-06-08) - snapshot semantics amended by D45e/D54b; surprise comparison by D60a
 Closing the reward-loop details from the design review: (a) **surprise detection is
 structural** in `remember`, a new claim vs a high-confidence claim about the same
 entity/attribute with opposite value/polarity mints a Question; no model on the hot path.

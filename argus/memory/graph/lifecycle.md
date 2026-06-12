@@ -90,7 +90,11 @@ re-snapshotting at first recall** (D58c). Needed for prediction-error reward. Su
 `{entity, attribute, qualifier}`, different `(value, unit)` or polarity, vs a
 high-confidence claim (D60a: 18 Nm vs 18 ft-lb IS a conflict even though the value
 matches; no
-model; D44). A surprise Question points at two candidates and usually closes in the same step.
+model; D44). A surprise Question points at two candidates, or at **one** for a bare
+denial (same content key, opposite polarity, which claim-level match-or-create routes to
+the same node): the contest is then the node's own polarity-mixed attestation sum, the
+snapshot its pre-denial confidence, and outcome = 1 if the prior belief survives, 0 if
+its derived confidence flips negative (D61c). It usually closes in the same step.
 (Same-step closure is just Section 5 applied to the minting claim: it closes only if that
 evidence's ladder rung drops uncertainty below `ε`, typically a real-world result or a
 competent user on an empirical claim; a weaker assert leaves it open, discounting both
@@ -109,12 +113,15 @@ reset across revisions** (lineage-scoped).
 **Composition rules (D58):** a **reframed Question is closed-as-superseded** at reframe
 time: it stops discounting, is invisible to dedup, and no longer blocks GC; only lineage
 **heads** discount, dedup, surface, and count for the GC guard (the Question-side mirror of
-D57d). On **decompose**, the children take the discount **partitioned by key match**: a candidate
-wires at ~1 only to the child whose `{entity, attribute, qualifier?}` it matches; children
-**sharing** a key split the candidate's edge weight between them; a candidate matching
-**no** child **stays on the parent at ~1** (the parent keeps discounting the unpartitioned
-remainder; one contest never discounts a claim twice, in either direction, and never stops
-discounting an unresolved one, D58d/D59c/D60b); the parent keeps `uncertainty =
+D57d). On **decompose**, the parent's candidate-edge weights drop to ~0 and the children take the
+discount **partitioned on `{entity, attribute}`** (D61a; qualifier discriminates only when
+the candidate carries one): an **unqualified** candidate matches **all** children sharing
+its `{entity, attribute}` and splits its weight among them; a **qualified** candidate
+matches only the qualifier-equal child; candidates matching **no** child move to an
+automatic **remainder child** carrying the parent's own key, born like any child (D61b;
+the agent may explicitly abandon it if moot). One contest never discounts a claim twice,
+in either direction, and never stops discounting an unresolved one (D58d/D59c). The
+parent keeps `uncertainty =
 max(open children)` as closure bookkeeping only and **closes silently** when all children
 close, or sooner if a child's resolution structurally answers the parent's key, in which
 case open siblings **close-as-moot** (cold, kept; a recurrence reopens via the

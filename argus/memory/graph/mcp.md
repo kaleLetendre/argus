@@ -101,7 +101,8 @@ create one from scratch).
   applies to the child whose key the claim matches (D58e). An identical existing claim (key incl. `unit`, D59b) is
   **attested, not duplicated** (claim-level match-or-create, D58h), and attestation is
   **idempotent**: one per `(source, claim, polarity, via)`, a repeat refreshes timestamps
-  only, so repetition never raises truth (D59a). `text` is the original
+  only, and a direct attestation **supersedes** its via-machine twin rather than adding
+  (one origin, one contribution, D60c), so repetition never raises truth (D59a). `text` is the original
   phrasing.)
 - **output:** `ApplyResult` —
   `{ surprise?: bool, question_minted?: id, question_resolved?: id,
@@ -176,10 +177,11 @@ scratch.
   parts?: { entity, attribute, qualifier?, text }[] }`
   (`replacement` for reframe; `parts` for decompose, one per child Question. The claim-key
   shape keeps revised Questions visible to structural dedup, topic-match, and discounting,
-  D57g; memory wires them to the parent's candidate/about edges **partitioned by key
-  match**: a candidate at ~1 only on the child whose `{entity, attribute, qualifier?}` it
-  matches; same-key children **split** the weight; a candidate matching no child **stays
-  on the parent at ~1** (D59c/D60b). **Park**
+  D57g; memory wires them to the parent's candidate/about edges **partitioned on
+  `{entity, attribute}`** (qualifier discriminates only when the candidate carries one,
+  D61a): an unqualified candidate splits its weight among all children sharing its key; a
+  qualified candidate goes only to the qualifier-equal child; unmatched candidates move to
+  an automatic **remainder child** carrying the parent's key, abandonable if moot (D61b). **Park**
   (D57a): the Question awaits the user / the world, exempt from study dispatch and
   ask-spacing pressure, still alive and discounting. Revisions inherit the lineage's
   attempt count against D47's cap; past the cap, only park or abandon. Parent/child:
