@@ -81,7 +81,9 @@ create one from scratch).
      text?: string }`
   (`entity`/`value` are **name-or-id**, memory match-or-creates (D51); `source` is likewise
   **name-or-id** with the same match-or-create semantics, so the user / a manual stays ONE
-  Source node across sessions (competence needs stable identity, D54e); `source_type` is
+  Source node across sessions (competence needs stable identity, D54e); a Source is the
+  specific **speaker or document, never the platform** (a particular forum user, not
+  "reddit"; the platform only sets the type prior, D63a); `source_type` is
   agent-supplied and consumed only when the Source is first **created** (it sets D42's
   born-from-type competence prior; omitted/unknown -> low prior; memory cannot classify,
   D55a); `via:"machine"` marks a machine-extracted attestation (the extractor sets it on

@@ -62,7 +62,9 @@ they stay separate (D38):
   supersedes the prior one (latest wins; a source can retract, D62a), so repetition
   cannot raise truth and retraction cannot permanently zero it. Never
   stored, never nudged. Asking a lot adds **zero** sources, so use cannot move it.
-- **competence** (on sources) = **trust / track record**, per topic. **Born from the
+- **competence** (on sources) = **trust / track record**, per topic. A Source is the
+  specific **speaker or document, never the platform** (a particular forum user, not
+  "reddit"; the platform only sets the type prior, D63a). **Born from the
   source type** (D42: factory manual / spec / peer-reviewed paper ~high; experiment ~high
   by rigor; the user ~medium-high and topic-dependent; forum / random web ~low), then moves
   only on validation (being right or wrong when a Question/Event resolves). So a single-
@@ -179,7 +181,10 @@ asked), **resolution provenance** (a closed Question + its minted Source).
   trips the research/ask gate (D30).
 - **Resolution = reward, structurally:** evidence lowers uncertainty, **mints a Source**
   attesting the winner (raising its *derived* confidence), updates sources' **competence**,
-  and nudges the used **weights**. Close at `uncertainty < ε` (cold, kept as history). A
+  and nudges the used **weights**. A contest may also settle as a **false conflict**
+  (D63b): the resolution requalifies both candidates ("18" -> "18 when cold", "13" ->
+  "13 when hot") and the question closes with no loser and no source punished. Close at
+  `uncertainty < ε` (cold, kept as history). A
   surprise is usually born-and-closed in one step (big prediction error); it closes
   same-step only if the minting evidence itself clears `ε` (lifecycle §2), else it stays
   open and discounts both candidates.

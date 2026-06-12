@@ -3,7 +3,7 @@
 Dense briefing for a fresh Claude picking up the design. **Nothing is built yet**, this is
 all design. Canonical truth lives in the docs under `argus/` (this file summarizes; when in
 doubt, the linked docs win). Decision log is the spine: `argus/architecture.md` (newest
-first, D1-D62, with supersede/amend notes).
+first, D1-D63, with supersede/amend notes).
 
 Project conventions: append-only decision log (never rewrite history, add a new dated
 decision that supersedes). Docs live **next to the system they describe** (no `docs/`
@@ -159,7 +159,7 @@ per-session).
 
 ```
 system_goal.txt            whole-system charter (plain language)
-architecture.md            master design + decision log D1-D62 (the spine)
+architecture.md            master design + decision log D1-D63 (the spine)
 runtime-topology.md        processes, tasks, queue, scaling, two research lanes
 architecture.drawio        3-page diagram (compartments, task routing, scaling)
 CONTEXT.md                 this file
@@ -315,7 +315,14 @@ opposite-polarity attestation from the same (source, via) supersedes the prior; 
 wins, old kept as history excluded from the sum; a source can RETRACT, so assert -> deny
 -> reaffirm never self-cancels to a permanent zero); outcome tie defined (sum ≤ 0 =
 overturned); D61a's qualifier-optional matching governs the partition only (resolution
-routing is exact-key; an unqualified resolver takes the parent-key early close).
+routing is exact-key; an unqualified resolver takes the parent-key early close). D63
+(user review): a Source is the specific speaker/document, never the platform ("reddit" is
+not a source; a particular user is; the platform only sets the type prior);
+**false-conflict resolution** (a contest may settle by requalifying both candidates,
+"18" -> "18 cold" / "13" -> "13 hot": no loser, no source punished, outcome 1); lifecycle
+phrasing pinned (a denial Question = "the source says not-X: what is it actually";
+decompose = suspect-but-don't-know, knowing the mapping resolves directly by
+requalification).
 
 Superseded: D2, D6, D7 (mesh/leaf/core), D31 (-> D38), workspace-isolation hard rule (->
 D41), D50b cascade (-> D51a). (D9/D12 superseded by D31, then restored by D38.)
@@ -350,7 +357,9 @@ rules, cross-via collapse, topic-match for inline answers); round 12 audited D60
 produced D61 (partition pinned, the remainder child, the one-candidate denial), with both
 non-cosmetic findings confined to D60b's single new rule; round 13 audited D61 and
 produced D62 (a source can retract; the tie outcome; the routing-scope pin), its one
-blocking find inside D61c x D59a. After the clean round: the
+blocking find inside D61c x D59a; a user review of D61/D62 produced D63 (speaker-level
+sources, false-conflict resolution, lifecycle phrasing). The loop now runs **one round
+per explicit user go**, decisions presented before applied. After the clean round: the
 stage/milestone restructure (agreed in principle, pending), then plan the build. Verdict: architecture sound and buildable;
 the remaining softness is the claim write-path (qualifier matching, "topic",
 spreading-activation algorithm) which **hardens against real data, not another review**.

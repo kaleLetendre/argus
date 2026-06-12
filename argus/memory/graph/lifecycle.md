@@ -50,7 +50,10 @@ gate, the D51c update guard) must sit below that, or single-source claims can ne
   and its contribution to the confidence sum is capped at `cap_provisional` until a
   validation touches it (extraction fidelity is not document reliability, D57c);
 - **granularity** is the agent's call: a distinct thing is its own entity (built 2JZ vs
-  model 2JZ) with an `IS-A` edge for inherit-and-override.
+  model 2JZ) with an `IS-A` edge for inherit-and-override. **Source granularity (D63a):**
+  a Source is the specific **speaker or document**, never the platform: a particular forum
+  user, a specific manual edition. The platform only sets the type prior (forum -> low).
+  Independence, track record, and retraction (D62a) all key on the speaker.
 
 **Source nodes** are also **minted on resolution** (Sections 5, 6b): an experiment, finding,
 or user statement that settles a Question/Event becomes a first-class Source attesting the
@@ -98,7 +101,9 @@ denial (same content key, opposite polarity, which claim-level match-or-create r
 the same node): the contest is then the node's own polarity-mixed attestation sum, the
 snapshot its pre-denial confidence, and outcome = 1 if the prior belief survives, 0 if
 its derived confidence **fails to remain positive** (sum ≤ 0 counts as overturned, so the
-exact tie is defined, D61c/D62b). It usually closes in the same step.
+exact tie is defined, D61c/D62b). Read it the way it is meant (D63c): the denial Question
+means "**the source says not-X: what is it actually**": it keys on the attribute, so any
+later value resolves it; the one-candidate polarity sum is just its storage form. It usually closes in the same step.
 (Same-step closure is just Section 5 applied to the minting claim: it closes only if that
 evidence's ladder rung drops uncertainty below `ε`, typically a real-world result or a
 competent user on an empirical claim; a weaker assert leaves it open, discounting its
@@ -117,7 +122,10 @@ reset across revisions** (lineage-scoped).
 **Composition rules (D58):** a **reframed Question is closed-as-superseded** at reframe
 time: it stops discounting, is invisible to dedup, and no longer blocks GC; only lineage
 **heads** discount, dedup, surface, and count for the GC guard (the Question-side mirror of
-D57d). On **decompose**, the parent's candidate-edge weights drop to ~0 and the children take the
+D57d). **Decompose is for suspect-but-don't-know** (D63c): study suspects condition-dependence
+(or multiple parts) but cannot yet assign values; when study **knows** the mapping it
+resolves directly by requalification (a false conflict, §5/D63b), no split. On
+**decompose**, the parent's candidate-edge weights drop to ~0 and the children take the
 discount **partitioned on `{entity, attribute}`** (D61a; qualifier discriminates only when
 the candidate carries one): an **unqualified** candidate matches **all** children sharing
 its `{entity, attribute}` and splits its weight among them; a **qualified** candidate
@@ -218,6 +226,11 @@ moves everything hardest, a confident belief confirmed teaches little):
    **as of mint**, excluding the resolving remember's own attestation, so a settler never
    marks itself right for agreeing with itself, D58f; right up, wrong down) -> re-derives
    confidence on every claim they attest (the free retroactive correction, D12).
+   **False conflict (D63b):** when the resolution **requalifies** the candidates instead
+   of picking one ("18" -> "18 when cold", "13" -> "13 when hot", each superseded by its
+   qualified version), the question closes with **no loser**: every involved source is
+   marked right, none wrong, and outcome = 1 (the presumptive answer survived in
+   qualified form).
 4. **Nudge weights**: up on the winner's links, optionally down on the losing candidates'
    links (the Question's candidate edges are the structural handle, D53).
 5. **Grow edges** if study implicated new nodes.

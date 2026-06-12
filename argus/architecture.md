@@ -11,7 +11,7 @@ structural decision is made, it gets an entry here before code changes.
 
 **This is design, not yet built.** The existing code still has the old layout
 (`store/ knowledge/ enrich/ workspace/`); the systems, contracts, and memory model
-below are the agreed target, captured in decisions **D1-D62**. The system directories
+below are the agreed target, captured in decisions **D1-D63**. The system directories
 now exist (`interaction/ agents/ memory/`, each with a plain-language `system_goal.txt`
 and a `design.md`, plus `contracts/` and this doc), but no compartment code has moved
 into them yet.
@@ -42,7 +42,9 @@ produced D60** (unit-aware surprise, decompose boundary rules, cross-via collaps
 the one-candidate denial Question); its only non-cosmetic findings sat inside D60b's new
 rule. **Round 13 produced D62** (per-origin polarity supersession: a source can retract;
 the tie-point outcome; the routing-scope pin), its one blocking find inside D61c's
-interaction with D59a. The review loop continues until a clean round. Doc-level reconciliation; the D52
+interaction with D59a. **A user review of D61/D62 produced D63** (a Source is the speaker,
+never the platform; false-conflict resolution punishes no one; lifecycle phrasing pinned).
+The review loop continues until a clean round, one round per user go. Doc-level reconciliation; the D52
 build verdict stands.
 
 **Next steps, in order:**
@@ -150,6 +152,32 @@ Captured in D18-D22. Diagrams (compartments, task routing, scaling) live in
 
 Newest first. Each decision is small, dated, and states the *why* so it can be
 revisited deliberately rather than drifted away from.
+
+### D63 - Source granularity; false-conflict resolution (user review of D61/D62) (2026-06-11)
+User-driven corrections from walking the recent rounds together. (a) **A Source is the
+specific speaker or document, never the platform** (refines D42/D54e): a particular forum
+user is a source, "reddit" is not; a specific manual edition is a source, "the internet"
+is not. The platform sets the born-from-type prior (forum -> low); the speaker carries
+the identity. Why it matters three ways: **independence** (ten different users agreeing
+is corroboration; ten posts by one user is one origin), **track record** (one
+reliably-right person must not credit a whole site), and **retraction** (D62a is per
+speaker: one user taking something back must not erase another's statement). (b)
+**False-conflict resolution**: a contest may settle by **requalifying** its candidates
+rather than picking a winner ("18" -> "18 when cold", "13" -> "13 when hot", each
+superseded by its qualified version): the question closes with **no loser**, and the
+competence update marks **no source wrong** (both were right about different conditions;
+docking the "losing" manual would be unjust). Outcome = 1 (the presumptive answer
+survived, in qualified form). The resolving evidence attests the requalified claims per
+D57b (the document directly when read; a minted research-finding Source when derived).
+(c) Lifecycle phrasing pinned the way it is meant to be read: a bare denial's Question
+means "**the source says not-X: what is it actually**" (it keys on the attribute, so any
+later value resolves it; D61c's one-candidate polarity sum is just its storage form); and
+decompose is for **suspect-but-don't-know** (study suspects condition-dependence but
+cannot yet assign values); when study **knows** the mapping it resolves directly by
+requalification, no split. See
+[memory/graph/lifecycle.md](memory/graph/lifecycle.md),
+[memory/graph/memory-model.md](memory/graph/memory-model.md),
+[memory/graph/mcp.md](memory/graph/mcp.md).
 
 ### D62 - Round-13 closures: per-origin polarity supersession (a source can retract) (2026-06-11)
 Round 13's one blocking find sat in D61c's interaction with D59a's idempotency key; the
