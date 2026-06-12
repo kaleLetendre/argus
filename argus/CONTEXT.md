@@ -3,7 +3,7 @@
 Dense briefing for a fresh Claude picking up the design. **Nothing is built yet**, this is
 all design. Canonical truth lives in the docs under `argus/` (this file summarizes; when in
 doubt, the linked docs win). Decision log is the spine: `argus/architecture.md` (newest
-first, D1-D61, with supersede/amend notes).
+first, D1-D62, with supersede/amend notes).
 
 Project conventions: append-only decision log (never rewrite history, add a new dated
 decision that supersedes). Docs live **next to the system they describe** (no `docs/`
@@ -159,7 +159,7 @@ per-session).
 
 ```
 system_goal.txt            whole-system charter (plain language)
-architecture.md            master design + decision log D1-D61 (the spine)
+architecture.md            master design + decision log D1-D62 (the spine)
 runtime-topology.md        processes, tasks, queue, scaling, two research lanes
 architecture.drawio        3-page diagram (compartments, task routing, scaling)
 CONTEXT.md                 this file
@@ -310,7 +310,12 @@ same-key children; supersedes D60b's per-child qualifier key, a Stage-1 no-op); 
 candidates move to an automatic **remainder child** carrying the parent's key (supersedes
 "stays on the parent"; parent is pure bookkeeping again); polarity-only surprise defined
 (a bare denial = a one-candidate Question over the node's own polarity sum); marker sweep
-(D43/D44/D48/D59).
+(D43/D44/D48/D59). D62 round-13 closures: per-origin polarity supersession (an
+opposite-polarity attestation from the same (source, via) supersedes the prior; latest
+wins, old kept as history excluded from the sum; a source can RETRACT, so assert -> deny
+-> reaffirm never self-cancels to a permanent zero); outcome tie defined (sum ≤ 0 =
+overturned); D61a's qualifier-optional matching governs the partition only (resolution
+routing is exact-key; an unqualified resolver takes the parent-key early close).
 
 Superseded: D2, D6, D7 (mesh/leaf/core), D31 (-> D38), workspace-isolation hard rule (->
 D41), D50b cascade (-> D51a). (D9/D12 superseded by D31, then restored by D38.)
@@ -343,7 +348,9 @@ partitioned decompose, recall question refs, delivered(ref), lineage-head dedup 
 agents); round 11 audited D59 and produced D60 (unit-aware surprise, decompose boundary
 rules, cross-via collapse, topic-match for inline answers); round 12 audited D60 and
 produced D61 (partition pinned, the remainder child, the one-candidate denial), with both
-non-cosmetic findings confined to D60b's single new rule. After the clean round: the
+non-cosmetic findings confined to D60b's single new rule; round 13 audited D61 and
+produced D62 (a source can retract; the tie outcome; the routing-scope pin), its one
+blocking find inside D61c x D59a. After the clean round: the
 stage/milestone restructure (agreed in principle, pending), then plan the build. Verdict: architecture sound and buildable;
 the remaining softness is the claim write-path (qualifier matching, "topic",
 spreading-activation algorithm) which **hardens against real data, not another review**.

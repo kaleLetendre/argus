@@ -101,8 +101,11 @@ create one from scratch).
   applies to the child whose key the claim matches (D58e). An identical existing claim (key incl. `unit`, D59b) is
   **attested, not duplicated** (claim-level match-or-create, D58h), and attestation is
   **idempotent**: one per `(source, claim, polarity, via)`, a repeat refreshes timestamps
-  only, and a direct attestation **supersedes** its via-machine twin rather than adding
-  (one origin, one contribution, D60c), so repetition never raises truth (D59a). `text` is the original
+  only, a direct attestation **supersedes** its via-machine twin rather than adding
+  (one origin, one contribution, D60c), and an opposite-polarity attestation from the
+  same `(source, via)` **supersedes** the prior one (a source can retract; latest polarity
+  wins per origin, D62a), so repetition never raises truth (D59a) and retraction never
+  self-cancels. `text` is the original
   phrasing.)
 - **output:** `ApplyResult` —
   `{ surprise?: bool, question_minted?: id, question_resolved?: id,

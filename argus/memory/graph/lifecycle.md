@@ -36,7 +36,10 @@ gate, the D51c update guard) must sit below that, or single-source claims can ne
   **confidence is then derived** from its attestations × source competence (nothing stored).
   **Attestation is idempotent (D59a):** one attestation per `(source, claim, polarity,
   via)`; a repeat refreshes timestamps and nothing else, so re-stating or re-ingesting the
-  same thing never raises truth. **Cross-via collapse (D60c):** a direct attestation with
+  same thing never raises truth. **A source can retract (D62a):** an attestation with the
+  same `(source, via)` and **opposite polarity supersedes** the prior one (latest polarity
+  wins per origin; the old edge is kept as history, excluded from the confidence sum), so
+  assert -> deny -> reaffirm never self-cancels to a permanent zero. **Cross-via collapse (D60c):** a direct attestation with
   the same `(source, claim, polarity)` **supersedes** the `via:"machine"` one (reading the
   document validates the extraction), never adds to it: one origin, one contribution.
   A new source's competence is **born from its type** (D42: manual/paper/spec high, the user
@@ -94,11 +97,12 @@ model; D44). A surprise Question points at two candidates, or at **one** for a b
 denial (same content key, opposite polarity, which claim-level match-or-create routes to
 the same node): the contest is then the node's own polarity-mixed attestation sum, the
 snapshot its pre-denial confidence, and outcome = 1 if the prior belief survives, 0 if
-its derived confidence flips negative (D61c). It usually closes in the same step.
+its derived confidence **fails to remain positive** (sum ≤ 0 counts as overturned, so the
+exact tie is defined, D61c/D62b). It usually closes in the same step.
 (Same-step closure is just Section 5 applied to the minting claim: it closes only if that
 evidence's ladder rung drops uncertainty below `ε`, typically a real-world result or a
-competent user on an empirical claim; a weaker assert leaves it open, discounting both
-candidates, which is the question-the-user stance, D32. A surprise-minting `remember`
+competent user on an empirical claim; a weaker assert leaves it open, discounting its
+candidate(s), which is the question-the-user stance, D32. A surprise-minting `remember`
 carries no `resolves_ref`, the Question does not exist before the call, so its same-step
 rung comes from `source_type` x `claim_type` alone, no `rigor` field, D58h.)
 
@@ -189,7 +193,9 @@ not double-counted (D43).
 Evidence arrives (research, experiment via an Event, user, or study derivation).
 `resolves_ref` **follows a supersedes chain to the lineage head** (an answer to a
 since-reframed Prompt lands on the live Question; for a decomposed target it applies to
-the child whose key the claim structurally matches; if no child matches but the
+the child whose key the claim structurally matches, where routing matches **exact** keys,
+D62c: D61a's qualifier-optional rule governs the candidate partition only, so an
+unqualified resolving claim never multi-matches; if no child matches but the
 **parent's** key does, that is the D59d early close (parent closes, open children
 close-as-moot, the resolving remember's attestation lands normally, no resolution update
 runs through the parent's edges, D60e); if nothing matches, it lands as a plain `remember`

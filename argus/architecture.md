@@ -11,7 +11,7 @@ structural decision is made, it gets an entry here before code changes.
 
 **This is design, not yet built.** The existing code still has the old layout
 (`store/ knowledge/ enrich/ workspace/`); the systems, contracts, and memory model
-below are the agreed target, captured in decisions **D1-D61**. The system directories
+below are the agreed target, captured in decisions **D1-D62**. The system directories
 now exist (`interaction/ agents/ memory/`, each with a plain-language `system_goal.txt`
 and a `design.md`, plus `contracts/` and this doc), but no compartment code has moved
 into them yet.
@@ -40,7 +40,9 @@ the recall question refs, `delivered(ref)`, lineage-head dedup at agents). **Rou
 produced D60** (unit-aware surprise, decompose boundary rules, cross-via collapse).
 **Round 12 produced D61** (the partition pinned on entity+attribute; the remainder child;
 the one-candidate denial Question); its only non-cosmetic findings sat inside D60b's new
-rule. The review loop continues until a clean round. Doc-level reconciliation; the D52
+rule. **Round 13 produced D62** (per-origin polarity supersession: a source can retract;
+the tie-point outcome; the routing-scope pin), its one blocking find inside D61c's
+interaction with D59a. The review loop continues until a clean round. Doc-level reconciliation; the D52
 build verdict stands.
 
 **Next steps, in order:**
@@ -149,6 +151,28 @@ Captured in D18-D22. Diagrams (compartments, task routing, scaling) live in
 Newest first. Each decision is small, dated, and states the *why* so it can be
 revisited deliberately rather than drifted away from.
 
+### D62 - Round-13 closures: per-origin polarity supersession (a source can retract) (2026-06-11)
+Round 13's one blocking find sat in D61c's interaction with D59a's idempotency key; the
+core model held an eighth straight round. (a) **An attestation with the same
+`(source, via)` and opposite polarity supersedes the prior one**: latest polarity wins per
+origin; the old edge is kept as history but excluded from the confidence sum (the D57d
+read-time-exclusion idiom; amends D59a, mirrors D60c). Without this a source could never
+retract: assert -> deny -> reaffirm left `c×(+1) + c×(−1) = 0` forever (D59a treated the
+reaffirm as a mere refresh of the original), pinning a twice-confirmed fact at zero
+confidence and putting the same Source on both sides of its own contest's frozen involved
+set (simultaneously right and wrong at resolution). One origin now contributes exactly one
+signed value, always its latest. (b) **The D61c outcome operand is defined at the tie**:
+overturned = the prior belief's derived confidence **fails to remain positive** (sum ≤ 0
+-> outcome 0), so prediction error is computable at exactly-balanced polarities. (c)
+**D61a's match rule governs the partition only**: resolution routing matches **exact**
+keys; an unqualified resolving claim therefore takes the D59d parent-key early close
+(mooting the qualifier children), never a multi-child match. (d) Cosmetic: same-step
+closure text reads "its candidate(s)" (covers the one-candidate denial); D60's header
+notes D61's correction of its (e) phrasing. See
+[memory/graph/lifecycle.md](memory/graph/lifecycle.md),
+[memory/graph/mcp.md](memory/graph/mcp.md),
+[memory/graph/memory-model.md](memory/graph/memory-model.md).
+
 ### D61 - Round-12 closures: the decompose partition pinned; the remainder child (2026-06-11)
 Round 12 found both its non-cosmetic defects inside D60b's partition rule; the core model
 held a seventh straight round. (a) **Partition matches on `{entity, attribute}`; qualifier
@@ -180,7 +204,7 @@ gains the D60c cross-via collapse clause. See
 [memory/graph/lifecycle.md](memory/graph/lifecycle.md),
 [memory/graph/mcp.md](memory/graph/mcp.md).
 
-### D60 - Round-11 closures: unit-aware surprise, decompose boundaries, cross-via collapse (2026-06-11) - (b) partition rule superseded by D61a/b (entity+attribute partition; the remainder child)
+### D60 - Round-11 closures: unit-aware surprise, decompose boundaries, cross-via collapse (2026-06-11) - (b) partition rule superseded by D61a/b (entity+attribute partition; the remainder child); (e)'s "zeroed edges" phrasing corrected by D61b
 Round 11 audited D59 and found five boundary defects in its new rules; the core model held
 a sixth straight round. (a) **The surprise/conflict test is the complement of the match
 key**: same `{entity, attribute, qualifier}`, different `(value, unit)` or polarity. D59b
@@ -217,7 +241,7 @@ user's own utterance). See [memory/graph/lifecycle.md](memory/graph/lifecycle.md
 [agents/design.md](agents/design.md),
 [contracts/interaction-agents.md](contracts/interaction-agents.md).
 
-### D59 - Round-10 closures: idempotent attestation, the unit key, partitioned decompose, the missing carriers (2026-06-11) - boundary rules amended by D60 (surprise key, decompose extremes, cross-via); (e)'s next-turn-resolves_ref claim corrected by D60d (topic-match)
+### D59 - Round-10 closures: idempotent attestation, the unit key, partitioned decompose, the missing carriers (2026-06-11) - boundary rules amended by D60 (surprise key, decompose extremes, cross-via); (e)'s next-turn-resolves_ref claim corrected by D60d (topic-match); (a)'s idempotency amended by D62a (opposite polarity supersedes per origin)
 Round 10 audited the D58 patch set and found five blocking defects in the new machinery
 plus two contradictions; the core model held a fifth straight round. (a) **Attestation is
 idempotent**: one attestation per `(source, claim, polarity, via)`; a repeat refreshes

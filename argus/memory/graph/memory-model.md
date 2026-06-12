@@ -57,8 +57,10 @@ they stay separate (D38):
 - **confidence** (derived, per claim) = **truth**, computed:
   `confidence(claim) = squash( Σ over independent attestations: competence(source) × polarity )`
   (`squash` = `tanh` placeholder, D45). One attestation per `(source, claim, polarity, via)`:
-  re-statement refreshes, never adds (D59a), and a direct attestation supersedes its
-  via-machine twin (D60c), so repetition cannot raise truth. Never
+  re-statement refreshes, never adds (D59a), a direct attestation supersedes its
+  via-machine twin (D60c), and an opposite-polarity attestation from the same origin
+  supersedes the prior one (latest wins; a source can retract, D62a), so repetition
+  cannot raise truth and retraction cannot permanently zero it. Never
   stored, never nudged. Asking a lot adds **zero** sources, so use cannot move it.
 - **competence** (on sources) = **trust / track record**, per topic. **Born from the
   source type** (D42: factory manual / spec / peer-reviewed paper ~high; experiment ~high
